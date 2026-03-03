@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <title>Eternal Gate (new v1)</title>
+  <link rel="stylesheet" href="./style.css?v=eg-new1"/>
+</head>
+<body>
+  <div id="app">
+    <div id="stage16">
+      <div id="game-root"></div>
+
+      <div id="ui">
+        <div id="uiScale">
+          <header id="topbar">
+            <div class="brand glass">
+              <div class="dot"></div>
+              <div>
+                <div class="t">Eternal Gate</div>
+                <div class="s" id="verText">new v1</div>
+              </div>
+            </div>
+
+            <div class="hud glass">
+              <div class="bars">
+                <div class="barrow">
+                  <div class="label">HP</div>
+                  <div class="bar"><div class="fill hp" id="hpFill"></div></div>
+                  <div class="val" id="hpText">—</div>
+                </div>
+                <div class="barrow">
+                  <div class="label">MP</div>
+                  <div class="bar"><div class="fill mp" id="mpFill"></div></div>
+                  <div class="val" id="mpText">—</div>
+                </div>
+              </div>
+              <div class="rightBox">
+                <div class="pill glass">
+                  <div class="k">GOLD</div>
+                  <div class="v" id="goldText">0</div>
+                </div>
+                <div class="pill glass">
+                  <div class="k">MAP</div>
+                  <div class="v" id="mapText">Town</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="iconRow">
+              <button class="iconbtn" id="btnInv" title="인벤토리">🎒</button>
+              <button class="iconbtn" id="btnShop" title="상점">🛒</button>
+              <button class="iconbtn" id="btnDebug" title="디버그">🛠️</button>
+            </div>
+          </header>
+
+          <section id="minimapWrap" class="glass">
+            <canvas id="minimap" width="130" height="130"></canvas>
+          </section>
+
+          <footer id="bottombar">
+            <div id="joyWrap" class="glass">
+              <div id="joyBase"><div id="joyStick"></div></div>
+              <div class="joyhint" id="joyHint">MOVE</div>
+            </div>
+
+            <div id="skills" class="glass">
+              <button class="skill" id="btnE" title="상호작용(E)"><span class="k">E</span><span class="nm">상호작용</span></button>
+              <button class="skill" id="btn1" title="스킬 1"><span class="k">1</span><span class="nm">스킬1</span></button>
+              <button class="skill" id="btn2" title="스킬 2"><span class="k">2</span><span class="nm">스킬2</span></button>
+              <button class="skill" id="btnR" title="회피(R)"><span class="k">R</span><span class="nm">회피</span></button>
+              <button class="skill" id="btnF" title="줍기(F)"><span class="k">F</span><span class="nm">줍기</span></button>
+              <button class="skill" id="btnAtk" title="강화/공격"><span class="k">+</span><span class="nm">강화</span></button>
+            </div>
+          </footer>
+
+          <div id="debug" class="glass"></div>
+
+          <div id="panelShade"></div>
+
+          <section id="panelInv" class="panel glass">
+            <h3>인벤토리</h3>
+            <div class="small" id="invText">—</div>
+            <div class="row" style="margin-top:10px">
+              <button class="btn" id="btnCloseInv">닫기</button>
+            </div>
+          </section>
+
+          <section id="panelShop" class="panel glass">
+            <h3>상점</h3>
+            <div class="small">- <b>강화</b>는 회전 무기(블레이드) 개수가 1개씩 늘어나요.<br/>- 강화할수록 블레이드는 작게(절반) 유지됩니다.</div>
+            <div class="row" style="margin-top:10px">
+              <button class="btn" id="btnBuyHP">HP 포션(30G)</button>
+              <button class="btn" id="btnBuyMP">MP 포션(30G)</button>
+              <button class="btn" id="btnUpgrade">무기 강화(+1)</button>
+              <button class="btn" id="btnCloseShop">닫기</button>
+            </div>
+            <div class="small" style="margin-top:10px" id="shopHint">—</div>
+          </section>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/pixi.js-legacy@7.4.3/dist/pixi-legacy.min.js"></script>
+  <script>
+    window.addEventListener('error', (e)=>{
+      const dbg = document.getElementById('debug');
+      if(dbg){ dbg.classList.add('on'); dbg.textContent = 'ERROR: ' + (e?.message || String(e)); }
+    });
+  </script>
+  <script src="./js/main.js?v=eg-new1"></script>
+</body>
+</html>
