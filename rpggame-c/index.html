@@ -6,8 +6,8 @@
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-  <title>Eternal Gate (new v1)</title>
-  <link rel="stylesheet" href="./style.css?v=eg-new1"/>
+  <title>Eternal Gate (new v2)</title>
+  <link rel="stylesheet" href="./style.css?v=eg-new2"/>
 </head>
 <body>
   <div id="app">
@@ -21,7 +21,7 @@
               <div class="dot"></div>
               <div>
                 <div class="t">Eternal Gate</div>
-                <div class="s" id="verText">new v1</div>
+                <div class="s" id="verText">new v2</div>
               </div>
             </div>
 
@@ -81,13 +81,23 @@
 
           <div id="panelShade"></div>
 
-          <section id="panelInv" class="panel glass">
-            <h3>인벤토리</h3>
-            <div class="small" id="invText">—</div>
-            <div class="row" style="margin-top:10px">
-              <button class="btn" id="btnCloseInv">닫기</button>
-            </div>
-          </section>
+          
+<section id="panelInv" class="panel glass">
+  <h3>인벤토리 / 장비</h3>
+  <div class="small" id="equipText">—</div>
+
+  <div class="invBox">
+    <div class="invHead">
+      <div class="small" id="invMeta">—</div>
+      <button class="btn" id="btnSellAllJunk">잡템 일괄판매</button>
+    </div>
+    <div id="invList" class="invList"></div>
+  </div>
+
+  <div class="row" style="margin-top:10px">
+    <button class="btn" id="btnCloseInv">닫기</button>
+  </div>
+</section>
 
           <section id="panelShop" class="panel glass">
             <h3>상점</h3>
@@ -99,6 +109,7 @@
               <button class="btn" id="btnCloseShop">닫기</button>
             </div>
             <div class="small" style="margin-top:10px" id="shopHint">—</div>
+            <div class="small" style="margin-top:8px" id="enhanceHint">—</div>
           </section>
 
         </div>
@@ -113,6 +124,6 @@
       if(dbg){ dbg.classList.add('on'); dbg.textContent = 'ERROR: ' + (e?.message || String(e)); }
     });
   </script>
-  <script src="./js/main.js?v=eg-new1"></script>
+  <script src="./js/main.js?v=eg-new2"></script>
 </body>
 </html>
