@@ -6,8 +6,8 @@
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-  <title>Eternal Gate (new v2)</title>
-  <link rel="stylesheet" href="./style.css?v=eg-new2"/>
+  <title>Eternal Gate (new v3)</title>
+  <link rel="stylesheet" href="./style.css?v=eg-new3"/>
 </head>
 <body>
   <div id="app">
@@ -21,7 +21,7 @@
               <div class="dot"></div>
               <div>
                 <div class="t">Eternal Gate</div>
-                <div class="s" id="verText">new v2</div>
+                <div class="s" id="verText">new v3</div>
               </div>
             </div>
 
@@ -45,14 +45,14 @@
                 </div>
                 <div class="pill glass">
                   <div class="k">MAP</div>
-                  <div class="v" id="mapText">Town</div>
+                  <div class="v" id="mapText">—</div>
                 </div>
               </div>
             </div>
 
             <div class="iconRow">
-              <button class="iconbtn" id="btnInv" title="인벤토리">🎒</button>
-              <button class="iconbtn" id="btnShop" title="상점">🛒</button>
+              <button class="iconbtn" id="btnInv" title="인벤토리(I)">🎒</button>
+              <button class="iconbtn" id="btnShop" title="상점(마을에서 E)">🛒</button>
               <button class="iconbtn" id="btnDebug" title="디버그">🛠️</button>
             </div>
           </header>
@@ -69,11 +69,11 @@
 
             <div id="skills" class="glass">
               <button class="skill" id="btnE" title="상호작용(E)"><span class="k">E</span><span class="nm">상호작용</span></button>
-              <button class="skill" id="btn1" title="스킬 1"><span class="k">1</span><span class="nm">스킬1</span></button>
-              <button class="skill" id="btn2" title="스킬 2"><span class="k">2</span><span class="nm">스킬2</span></button>
+              <button class="skill" id="btn1" title="스킬 1(1)"><span class="k">1</span><span class="nm">스킬1</span></button>
+              <button class="skill" id="btn2" title="스킬 2(2)"><span class="k">2</span><span class="nm">스킬2</span></button>
               <button class="skill" id="btnR" title="회피(R)"><span class="k">R</span><span class="nm">회피</span></button>
               <button class="skill" id="btnF" title="줍기(F)"><span class="k">F</span><span class="nm">줍기</span></button>
-              <button class="skill" id="btnAtk" title="강화/공격"><span class="k">+</span><span class="nm">강화</span></button>
+              <button class="skill" id="btnAtk" title="강화"><span class="k">+</span><span class="nm">강화</span></button>
             </div>
           </footer>
 
@@ -81,31 +81,31 @@
 
           <div id="panelShade"></div>
 
-          
-<section id="panelInv" class="panel glass">
-  <h3>인벤토리 / 장비</h3>
-  <div class="small" id="equipText">—</div>
+          <section id="panelInv" class="panel glass">
+            <h3>인벤토리 / 장비</h3>
+            <div class="small" id="equipText">—</div>
 
-  <div class="invBox">
-    <div class="invHead">
-      <div class="small" id="invMeta">—</div>
-      <button class="btn" id="btnSellAllJunk">잡템 일괄판매</button>
-    </div>
-    <div id="invList" class="invList"></div>
-  </div>
+            <div class="invBox">
+              <div class="invHead">
+                <div class="small" id="invMeta">—</div>
+                <button class="btn" id="btnSellAllJunk">잡템 일괄판매</button>
+              </div>
+              <div id="invList" class="invList"></div>
+            </div>
 
-  <div class="row" style="margin-top:10px">
-    <button class="btn" id="btnCloseInv">닫기</button>
-  </div>
-</section>
+            <div class="row" style="margin-top:10px">
+              <button class="btn" id="btnCloseInv">닫기</button>
+            </div>
+          </section>
 
           <section id="panelShop" class="panel glass">
             <h3>상점</h3>
-            <div class="small">- <b>강화</b>는 회전 무기(블레이드) 개수가 1개씩 늘어나요.<br/>- 강화할수록 블레이드는 작게(절반) 유지됩니다.</div>
+            <div class="small">- <b>E</b>로 상점/포탈 상호작용<br/>- 사냥터 난이도: 일반(쉬움) / 동굴(보통) / 유적(어려움)</div>
             <div class="row" style="margin-top:10px">
               <button class="btn" id="btnBuyHP">HP 포션(30G)</button>
               <button class="btn" id="btnBuyMP">MP 포션(30G)</button>
-              <button class="btn" id="btnUpgrade">무기 강화(+1)</button>
+              <button class="btn" id="btnBuyProtect">보호권(80G)</button>
+              <button class="btn" id="btnUpgrade">무기 강화</button>
               <button class="btn" id="btnCloseShop">닫기</button>
             </div>
             <div class="small" style="margin-top:10px" id="shopHint">—</div>
@@ -124,6 +124,6 @@
       if(dbg){ dbg.classList.add('on'); dbg.textContent = 'ERROR: ' + (e?.message || String(e)); }
     });
   </script>
-  <script src="./js/main.js?v=eg-new2"></script>
+  <script src="./js/main.js?v=eg-new3"></script>
 </body>
 </html>
