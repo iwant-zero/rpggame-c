@@ -1238,7 +1238,7 @@ function refreshShop(){
   const rate = enhanceRate();
   const prot = state.inv.find(x=>x && x.tplId==='protect_scroll');
   const protN = prot ? (prot.n||1) : 0;
-  dom.shopHint.textContent = `무기강화 비용: ${cost}G / 현재 +${state.weaponPlus} / 성공확률 ${(rate*100).toFixed(0)}% / 보호권 ${protN}개`;
+  dom.shopHint.textContent = `무기강화 비용: ${cost}G / 현재 +${state.weaponPlus} / 보호권 ${protN}개`;
   dom.enhanceHint.textContent = `성공: 블레이드+1 / ATK·RANGE·CRIT 소폭 증가 · 실패: +4부터 단계하락(보호권 1개로 방지 가능)`;
 }
 
