@@ -103,26 +103,14 @@ canvas{display:block; width:100%; height:100%}
   top:calc(234px + var(--safeTop));
   right:calc(10px + var(--safeR));
   width:150px;
-  padding:10px;
+  padding:8px 8px 6px;
 }
-.bgmRow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.bgmRow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:3px}
 .bgmT{font-weight:800;font-size:12px;opacity:.92}
 .bgmV{font-size:12px;opacity:.85;min-width:40px;text-align:right}
-.bgmHint{margin-top:2px;opacity:.75}
+.bgmHint{margin-top:0;opacity:.75;font-size:11px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #bgmVol{flex:1}
-.bgmSelect{
-  width:100%;
-  padding:6px 8px;
-  border-radius:12px;
-  background:rgba(10,14,22,.55);
-  color:#fff;
-  border:1px solid var(--line);
-  outline:none;
-  font-size:12px;
-}
-.bgmSelect option{background:#0b0e16;color:#fff}
-
-.btnMini{padding:6px 10px;border-radius:12px;font-size:12px}
+.btnMini{padding:5px 9px;border-radius:12px;font-size:11px}
 
 #bottombar{
   position:absolute;
