@@ -1213,7 +1213,7 @@ function enhanceCost(){
 }
 function enhanceRate(){
   const p = 1.00 - state.weaponPlus*0.05;
-  return clamp(p, 0.35, 1.00);
+  return clamp(p, 0.10, 1.00);
 }
 function refreshShop(){
   const cost = enhanceCost();
