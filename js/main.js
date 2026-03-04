@@ -1,13 +1,8 @@
 (()=>{"use strict";
-
-const VERSION = 'eg-new4-d4-bossbox3';
+const VERSION = 'eg-new4-d4-bossbox2';
 const BASE_W = 960, BASE_H = 540;
-
 const $ = (id)=>document.getElementById(id);
-
 function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
-
-
 function dist2(ax,ay,bx,by){ const dx=ax-bx, dy=ay-by; return dx*dx+dy*dy; }
 function now(){ return (performance && performance.now ? performance.now() : Date.now())/1000; }
 const dom = {
@@ -22,35 +17,27 @@ const dom = {
   joyBase: $('joyBase'),
   joyStick: $('joyStick'),
   joyHint: $('joyHint'),
-
   btnE: $('btnE'), btn1: $('btn1'), btn2: $('btn2'), btnR: $('btnR'), btnF: $('btnF'), btnAtk: $('btnAtk'),
   btnInv: $('btnInv'), btnShop: $('btnShop'), btnDebug: $('btnDebug'), btnBgm: $('btnBgm'),
-
   debug: $('debug'),
   shade: $('panelShade'),
-
   panelInv: $('panelInv'), equipText: $('equipText'), invMeta: $('invMeta'), invList: $('invList'),
   btnSellAllJunk: $('btnSellAllJunk'), btnCloseInv: $('btnCloseInv'),
-
   panelShop: $('panelShop'), btnCloseShop: $('btnCloseShop'),
   btnBuyHP: $('btnBuyHP'), btnBuyMP: $('btnBuyMP'), btnBuyProtect: $('btnBuyProtect'), btnUpgrade: $('btnUpgrade'),
   shopHint: $('shopHint'), enhanceHint: $('enhanceHint'),
-
   bgm: $('bgm'),
   bgmToggle: $('bgmToggle'),
   bgmVol: $('bgmVol'),
   bgmVolText: $('bgmVolText'),
   bgmHint: $('bgmHint'),
 };
-
 dom.verText.textContent = VERSION;
-
 // ---------- BGM (assets/bgm/track1.mp3 ~ track10.mp3, 순차 순환) ----------
 const BGM_FILES = Array.from({length: 10}, (_,i)=>`track${i+1}.mp3`);
 // Pages 루트(/)와 /rpggame-c/ 둘 다에서 동작하게 폴백 경로를 둔다.
 const IS_SUBDIR = (typeof location!=='undefined') && String(location.pathname||'').includes('/rpggame-c/');
 const BGM_BASES = IS_SUBDIR ? ['../assets/bgm/', './assets/bgm/'] : ['./assets/bgm/', '../assets/bgm/'];
-
 const bgmState = {
   on: false,
   vol: 0.40,
@@ -59,22 +46,17 @@ const bgmState = {
   failCycle: 0,    // 연속 실패(파일 없음 등) 카운터
   base: 0,         // 0..BGM_BASES.length-1
 };
-
 function bgmTrackLabel(){ return `track${bgmState.idx+1}`; }
 function bgmUrlFor(){
   const base = BGM_BASES[Math.max(0, Math.min(BGM_BASES.length-1, bgmState.base))];
   return base + BGM_FILES[bgmState.idx];
-}
-
-function bgmLoadPrefs(){
+}function bgmLoadPrefs(){
   try{
     const on = localStorage.getItem('eg_bgm_on');
     const vol = localStorage.getItem('eg_bgm_vol');
     const idx = localStorage.getItem('eg_bgm_idx');
     const base = localStorage.getItem('eg_bgm_base');
-
     if(on === '1') bgmState.on = true;
-
     if(vol !== null){
       const v = clamp(parseInt(vol,10)/100, 0, 1);
       if(!Number.isNaN(v)) bgmState.vol = v;
@@ -88,23 +70,18 @@ function bgmLoadPrefs(){
       if(Number.isFinite(b)) bgmState.base = clamp(b, 0, BGM_BASES.length-1);
     }
   }catch(_){}
-}
-function bgmSavePrefs(){
+}function bgmSavePrefs(){
   try{
     localStorage.setItem('eg_bgm_on', bgmState.on ? '1' : '0');
     localStorage.setItem('eg_bgm_vol', String(Math.round(bgmState.vol*100)));
     localStorage.setItem('eg_bgm_idx', String(bgmState.idx));
     localStorage.setItem('eg_bgm_base', String(bgmState.base));
   }catch(_){}
-}
-
-function bgmApplyVolume(){
+}function bgmApplyVolume(){
   if(dom.bgm) dom.bgm.volume = clamp(bgmState.vol, 0, 1);
   if(dom.bgmVol) dom.bgmVol.value = String(Math.round(bgmState.vol*100));
   if(dom.bgmVolText) dom.bgmVolText.textContent = `${Math.round(bgmState.vol*100)}%`;
-}
-
-function bgmUpdateUI(){
+}function bgmUpdateUI(){
   if(dom.bgmToggle){
     dom.bgmToggle.textContent = bgmState.on ? `ON ${bgmState.idx+1}/${BGM_FILES.length}` : 'OFF';
   }
@@ -114,21 +91,15 @@ function bgmUpdateUI(){
       ? `BGM: ON (${bgmTrackLabel()} / ${BGM_FILES.length})`
       : `BGM: OFF (track1~track${BGM_FILES.length})`;
   }
-}
-
-function bgmSetSrc(){
+}function bgmSetSrc(){
   if(!dom.bgm) return;
   dom.bgm.src = bgmUrlFor();
   try{ dom.bgm.load(); }catch(_){}
-}
-
-function bgmStop(){
+}function bgmStop(){
   if(!dom.bgm) return;
   try{ dom.bgm.pause(); }catch(_){}
   try{ dom.bgm.currentTime = 0; }catch(_){}
-}
-
-function bgmTryPlay(userGesture){
+}function bgmTryPlay(userGesture){
   if(!dom.bgm) return;
   bgmApplyVolume();
   bgmSetSrc();
@@ -144,19 +115,14 @@ function bgmTryPlay(userGesture){
       }
     });
   }
-}
-
-function bgmAdvance(reason){
+}function bgmAdvance(reason){
   if(!bgmState.on) return;
-
   if(reason === 'error'){
     bgmState.failCycle += 1;
   }else{
     bgmState.failCycle = 0;
   }
-
   bgmState.idx = (bgmState.idx + 1) % BGM_FILES.length;
-
   // 10곡 모두 실패하면(폴더 위치가 다른 경우 포함) 폴백 경로로 전환
   if(bgmState.failCycle >= BGM_FILES.length){
     bgmState.failCycle = 0;
@@ -172,37 +138,28 @@ function bgmAdvance(reason){
       return;
     }
   }
-
   bgmSavePrefs();
   bgmUpdateUI();
   bgmTryPlay(false);
-}
-
-function bgmSet(on, userGesture){
+}function bgmSet(on, userGesture){
   bgmState.on = !!on;
   bgmSavePrefs();
   bgmUpdateUI();
-
   if(!bgmState.on){
     bgmStop();
     return;
   }
   bgmTryPlay(!!userGesture);
-}
-
-function bgmInit(){
+}function bgmInit(){
   bgmLoadPrefs();
   bgmApplyVolume();
   bgmUpdateUI();
-
   if(dom.bgm){
     dom.bgm.addEventListener('ended', ()=>bgmAdvance('ended'));
     dom.bgm.addEventListener('error', ()=>bgmAdvance('error'));
   }
-
   // 최초 자동 재생은 브라우저 정책상 막힐 수 있음 → ON 상태였으면 시도만 해봄
   if(bgmState.on) bgmSet(true, false);
-
   // 볼륨 슬라이더
   if(dom.bgmVol){
     const onVol = ()=>{
@@ -213,19 +170,16 @@ function bgmInit(){
     dom.bgmVol.addEventListener('input', onVol);
     dom.bgmVol.addEventListener('change', onVol);
   }
-
   // 패널 토글(OFF/ON)
   if(dom.bgmToggle){
     dom.bgmToggle.addEventListener('click', (e)=>{ e.preventDefault(); bgmSet(!bgmState.on, true); }, {passive:false});
     dom.bgmToggle.addEventListener('touchstart', (e)=>{ e.preventDefault(); bgmSet(!bgmState.on, true); }, {passive:false});
   }
-
   // 상단 아이콘 토글
   if(dom.btnBgm){
     dom.btnBgm.addEventListener('click', (e)=>{ e.preventDefault(); bgmSet(!bgmState.on, true); }, {passive:false});
     dom.btnBgm.addEventListener('touchstart', (e)=>{ e.preventDefault(); bgmSet(!bgmState.on, true); }, {passive:false});
   }
-
   // 페이지가 숨겨지면 일단 정지(모바일 배터리/인앱 대응)
   document.addEventListener('visibilitychange', ()=>{
     if(document.hidden) bgmStop();
@@ -234,12 +188,8 @@ function bgmInit(){
       bgmSet(true, false);
     }
   });
-}
-
-
-// init
+}// init
 bgmInit();
-
 // ---------- item templates / equipment ----------
 const RARITY = {
   1:{name:'일반', cls:'r1'},
@@ -247,36 +197,30 @@ const RARITY = {
   3:{name:'희귀', cls:'r3'},
   4:{name:'에픽', cls:'r4'},
 };
-
 const TPL = {
   hp_potion: { id:'hp_potion', name:'HP 포션', type:'consumable', rarity:1, price:30, stack:true, healHP:60, sub:'HP +60' },
   mp_potion: { id:'mp_potion', name:'MP 포션', type:'consumable', rarity:1, price:30, stack:true, healMP:40, sub:'MP +40' },
   protect_scroll:{ id:'protect_scroll', name:'강화 보호권', type:'consumable', rarity:2, price:80, stack:true, protect:true, sub:'강화 실패 시 단계하락 1회 방지' },
   hero_box:    { id:'hero_box', name:'영웅 확률 +@ 상자', type:'consumable', rarity:4, price:0, stack:true, box:true, sub:'사용 시 장비 1개 획득 (영웅 확률 상승)' },
   junk: { id:'junk', name:'잡템', type:'junk', rarity:1, price:8, stack:true, sub:'상점 판매용' },
-
   wood_blade: { id:'wood_blade', name:'목검', type:'weapon', slot:'weapon', rarity:1, price:60, atk:4, range:0, crit:0.00, sub:'ATK +4' },
   iron_blade: { id:'iron_blade', name:'철검', type:'weapon', slot:'weapon', rarity:2, price:120, atk:7, range:4, crit:0.02, sub:'ATK +7, RANGE +4' },
   rune_blade: { id:'rune_blade', name:'룬블레이드', type:'weapon', slot:'weapon', rarity:3, price:240, atk:11, range:8, crit:0.04, sub:'ATK +11, RANGE +8, CRIT +4%' },
   void_blade: { id:'void_blade', name:'공허의 칼', type:'weapon', slot:'weapon', rarity:4, price:520, atk:16, range:12, crit:0.06, sub:'ATK +16, RANGE +12, CRIT +6%' },
-
   cloth_armor: { id:'cloth_armor', name:'천 갑옷', type:'armor', slot:'armor', rarity:1, price:60, def:2, hp:10, sub:'DEF +2, HP +10' },
   leather_armor: { id:'leather_armor', name:'가죽 갑옷', type:'armor', slot:'armor', rarity:2, price:140, def:4, hp:18, sub:'DEF +4, HP +18' },
   scale_armor: { id:'scale_armor', name:'비늘 갑옷', type:'armor', slot:'armor', rarity:3, price:280, def:6, hp:28, sub:'DEF +6, HP +28' },
   guardian_armor:{ id:'guardian_armor', name:'수호자 갑주', type:'armor', slot:'armor', rarity:4, price:560, def:9, hp:40, sub:'DEF +9, HP +40' },
-
   bronze_ring: { id:'bronze_ring', name:'청동 반지', type:'ring', slot:'ring', rarity:1, price:80, crit:0.02, mp:6, sub:'CRIT +2%, MP +6' },
   swift_ring:  { id:'swift_ring', name:'질주의 반지', type:'ring', slot:'ring', rarity:2, price:170, crit:0.03, range:6, sub:'CRIT +3%, RANGE +6' },
   power_ring:  { id:'power_ring', name:'힘의 반지', type:'ring', slot:'ring', rarity:3, price:320, atk:5, crit:0.04, sub:'ATK +5, CRIT +4%' },
   royal_ring:  { id:'royal_ring', name:'왕가의 반지', type:'ring', slot:'ring', rarity:4, price:620, atk:7, def:3, crit:0.05, sub:'ATK +7, DEF +3, CRIT +5%' },
 };
-
 function genOptions(tpl){
   const r = tpl.rarity || 1;
   const maxLines = (r>=3)?2:1;
   const want = (r>=2)? (Math.random()<0.70 ? 1 : 2) : (Math.random()<0.55 ? 1 : 0);
   const cnt = Math.min(maxLines, want);
-
   const pool = [];
   if(tpl.type==='weapon'){
     pool.push(['atk','공격력',[1,2+r]]);
@@ -292,12 +236,10 @@ function genOptions(tpl){
     pool.push(['mp','마나',[4,6+r*5]]);
     pool.push(['range','사거리',[2,4+r*2]]);
   }else return [];
-
   for(let i=pool.length-1;i>0;i--){
     const j=Math.floor(Math.random()*(i+1));
     const t=pool[i]; pool[i]=pool[j]; pool[j]=t;
   }
-
   const out=[];
   for(let i=0;i<cnt;i++){
     const [k,label,[a,b]] = pool[i];
@@ -311,9 +253,7 @@ function genOptions(tpl){
     out.push({k,label,v});
   }
   return out;
-}
-
-function makeItem(tplId){
+}function makeItem(tplId){
   const tpl = TPL[tplId];
   if(!tpl) return null;
   const it = {
@@ -325,9 +265,7 @@ function makeItem(tplId){
     it.opt = genOptions(tpl);
   }
   return it;
-}
-
-// ---------- maps / difficulty ----------
+}// ---------- maps / difficulty ----------
 const MAPS = {
   town: { id:'town', name:'마을', w: 2200, h: 1400, theme: {bg:0x14223c, grid:0x1f2e50}, portals:[
     {to:'hunt', name:'일반 사냥터', x: 1850, y: 640},
@@ -344,7 +282,6 @@ const MAPS = {
   abyss:{ id:'abyss',name:'심연 사냥터',w: 3000, h: 1900, theme:{bg:0x0a0f1f, grid:0x1b2b55}, portals:[{to:'town', name:'마을', x: 380, y: 940}],
     mobs:{n:20, hp:95, atk:14, gold:[14,26], color:0xc87aff, def:3} },
 };
-
 const MAP_DIFF = {
   town: { label:'안전', hpMul:1.0, atkMul:1.0, goldMul:1.0, tier:0, dropGear:0.00 },
   hunt: { label:'쉬움', hpMul:0.95, atkMul:0.95, goldMul:0.95, tier:1, dropGear:0.10 },
@@ -352,7 +289,6 @@ const MAP_DIFF = {
   ruins:{ label:'어려움',hpMul:1.20, atkMul:1.15, goldMul:1.25, tier:3, dropGear:0.22 },
   abyss:{ label:'매우 어려움', hpMul:1.35, atkMul:1.25, goldMul:1.45, tier:4, dropGear:0.30 },
 };
-
 const LOOT = {
   1: { gear: ['wood_blade','cloth_armor','bronze_ring'], rare: ['iron_blade','leather_armor','swift_ring'], epic: [] },
   2: { gear: ['iron_blade','leather_armor','swift_ring','wood_blade','cloth_armor','bronze_ring'],
@@ -365,16 +301,13 @@ const LOOT = {
        rare: ['void_blade','guardian_armor','royal_ring'],
        epic: ['void_blade','guardian_armor','royal_ring'] },
 };
-
 function rollLoot(tier){
   const t = LOOT[tier] || LOOT[1];
   const r = Math.random();
   if(t.epic.length && r < 0.10) return t.epic[Math.floor(Math.random()*t.epic.length)];
   if(t.rare.length && r < 0.35) return t.rare[Math.floor(Math.random()*t.rare.length)];
   return t.gear[Math.floor(Math.random()*t.gear.length)];
-}
-
-function rollBossBoxLoot(tier){
+}function rollBossBoxLoot(tier){
   const t = LOOT[tier] || LOOT[1];
   const hasEpic = t.epic && t.epic.length;
   const hasRare = t.rare && t.rare.length;
@@ -386,12 +319,9 @@ function rollBossBoxLoot(tier){
   if(hasRare && r < epicP + rareP) return t.rare[Math.floor(Math.random()*t.rare.length)];
   if(hasGear) return t.gear[Math.floor(Math.random()*t.gear.length)];
   return (LOOT[1].gear[0] || 'wood_blade');
-}
-
-function grantItemToInv(item){
+}function grantItemToInv(item){
   const tpl = item && TPL[item.tplId];
   if(!tpl) return false;
-
   if(tpl.stack){
     const ex = state.inv.find(it=>it && it.tplId===tpl.id);
     if(ex) ex.n = (ex.n||1) + (item.n||1);
@@ -401,18 +331,14 @@ function grantItemToInv(item){
     }
     return true;
   }
-
   if(state.inv.length >= state.invMax) return false;
   state.inv.push(item);
   return true;
-}
-
-function openHeroBox(it){
+}function openHeroBox(it){
   const tier = (it && (it.boxTier||it.tier||it.bossTier)) || 2;
   const tplId = rollBossBoxLoot(clamp(tier,1,4));
   const loot = makeItem(tplId);
   if(!loot) return false;
-
   const ok = grantItemToInv(loot);
   if(ok){
     const nm = (TPL[loot.tplId] && TPL[loot.tplId].name) ? TPL[loot.tplId].name : loot.tplId;
@@ -422,25 +348,19 @@ function openHeroBox(it){
     floatText('가방이 가득 찼습니다.', state.pos.x, state.pos.y-28);
   }
   return ok;
-}
-
-// ---------- state ----------
+}// ---------- state ----------
 const state = {
   map:'town',
   pos:{x: 760, y: 680},
   hp: 120, hpMax: 120,
   mp: 60, mpMax: 60,
   gold: 0,
-
   equip: { weapon:'wood_blade', armor:'cloth_armor', ring:'bronze_ring' },
   eopt: { weapon:[], armor:[], ring:[] },
-
   weaponPlus: 0,
-
   inv: [],
   invMax: 24,
 };
-
 const runtime = {
   t: 0,
   keys: new Set(),
@@ -449,17 +369,13 @@ const runtime = {
   portals: [],
   monsters: [],
   drops: [],
-
   bossSpawned: false,
   bossDefeated: false,
-
   hitCdUntil: 0,
   invulnUntil: 0,
-
   dead: false,
   deadUntil: 0,
 };
-
 function computeStats(){
   let atk=0, def=0, hp=0, mp=0, range=0, crit=0.0;
   const apply = (tpl, opt)=>{
@@ -480,51 +396,39 @@ function computeStats(){
   apply(TPL[state.equip.weapon], state.eopt.weapon);
   apply(TPL[state.equip.armor], state.eopt.armor);
   apply(TPL[state.equip.ring], state.eopt.ring);
-
   atk += Math.floor(state.weaponPlus * 1.2);
   range += state.weaponPlus * 1.2;
   crit += Math.min(0.15, state.weaponPlus * 0.004);
-
   return { atk, def, range, crit, hpMax:120+hp, mpMax:60+mp };
-}
-
-function uiUpdate(){
+}function uiUpdate(){
   const st = computeStats();
   state.hpMax = st.hpMax;
   state.mpMax = st.mpMax;
   state.hp = Math.min(state.hp, state.hpMax);
   state.mp = Math.min(state.mp, state.mpMax);
-
   dom.hpFill.style.width = (100*state.hp/state.hpMax).toFixed(1)+'%';
   dom.hpText.textContent = `${Math.floor(state.hp)}/${state.hpMax}`;
   dom.mpFill.style.width = (100*state.mp/state.mpMax).toFixed(1)+'%';
   dom.mpText.textContent = `${Math.floor(state.mp)}/${state.mpMax}`;
   dom.goldText.textContent = String(state.gold);
-
   const diff = MAP_DIFF[state.map] || MAP_DIFF.hunt;
   dom.mapText.textContent = `${MAPS[state.map].name} (${diff.label})`;
-}
-
-function rarityBadge(tpl){
+}function rarityBadge(tpl){
   const r = RARITY[tpl.rarity] || RARITY[1];
   return `<span class="badge ${r.cls}">${r.name}</span>`;
-}
-function slotName(slot){
+}function slotName(slot){
   return slot==='weapon'?'무기' : slot==='armor'?'방어구' : '링';
-}
-function fmtOpt(opt){
+}function fmtOpt(opt){
   if(!opt || !opt.length) return '옵션 없음';
   return opt.map(o=>{
     if(o.k==='crit') return `${o.label} +${(o.v*100).toFixed(1)}%`;
     return `${o.label} +${o.v}`;
   }).join(' · ');
-}
-function renderEquip(){
+}function renderEquip(){
   const w = TPL[state.equip.weapon];
   const a = TPL[state.equip.armor];
   const r = TPL[state.equip.ring];
   const st = computeStats();
-
   const lines = [];
   lines.push(`무기: ${w? w.name:'—'} ${w?rarityBadge(w):''} (+${state.weaponPlus})`);
   lines.push(`<span class="small">${fmtOpt(state.eopt.weapon)}</span>`);
@@ -534,11 +438,9 @@ function renderEquip(){
   lines.push(`<span class="small">${fmtOpt(state.eopt.ring)}</span>`);
   lines.push(`스탯: ATK ${st.atk} / DEF ${st.def} / RANGE ${Math.floor(st.range)} / CRIT ${(st.crit*100).toFixed(1)}%`);
   dom.equipText.innerHTML = lines.join('<br/>');
-}
-function renderInv(){
+}function renderInv(){
   dom.invMeta.textContent = `가방: ${state.inv.length}/${state.invMax} · GOLD ${state.gold}`;
   dom.invList.innerHTML = '';
-
   if(state.inv.length === 0){
     const d = document.createElement('div');
     d.className = 'small';
@@ -547,30 +449,23 @@ function renderInv(){
     dom.invList.appendChild(d);
     return;
   }
-
   for(const it of state.inv){
     const tpl = TPL[it.tplId];
     if(!tpl) continue;
-
     const row = document.createElement('div');
     row.className = 'invRow';
-
     const left = document.createElement('div');
     const nm = document.createElement('div');
     nm.className = 'invName';
     nm.innerHTML = `${tpl.name} ${rarityBadge(tpl)} ${it.n>1?`×${it.n}`:''}`;
-
     const sub = document.createElement('div');
     sub.className = 'invSub';
     const opt = Array.isArray(it.opt) && it.opt.length ? ' / ' + it.opt.map(o=> (o.k==='crit'?`${o.label}+${(o.v*100).toFixed(1)}%`:`${o.label}+${o.v}`)).join(', ') : '';
     sub.textContent = (tpl.sub || '') + opt;
-
     left.appendChild(nm);
     left.appendChild(sub);
-
     const right = document.createElement('div');
     right.className = 'invBtns';
-
     if(tpl.type==='weapon' || tpl.type==='armor' || tpl.type==='ring'){
       const b = document.createElement('button');
       b.className = 'btn';
@@ -585,7 +480,6 @@ function renderInv(){
       }, {passive:false});
       right.appendChild(b);
     }
-
     if(tpl.type==='consumable' && !tpl.protect){
       const b = document.createElement('button');
       b.className='btn';
@@ -599,7 +493,6 @@ function renderInv(){
       }, {passive:false});
       right.appendChild(b);
     }
-
     const sell = document.createElement('button');
     sell.className='btn';
     sell.textContent=`판매(+${tpl.price}G)`;
@@ -611,35 +504,27 @@ function renderInv(){
       renderEquip();
     }, {passive:false});
     right.appendChild(sell);
-
     row.appendChild(left);
     row.appendChild(right);
     dom.invList.appendChild(row);
   }
-}
-
-function openPanel(panel){
+}function openPanel(panel){
   dom.shade.classList.add('show');
   panel.classList.add('show');
-}
-function closePanels(){
+}function closePanels(){
   dom.shade.classList.remove('show');
   dom.panelInv.classList.remove('show');
   dom.panelShop.classList.remove('show');
-}
-
-// inventory operations
+}// inventory operations
 function invFind(uid){ return state.inv.find(x=>x && x.uid===uid); }
 function invRemove(uid){
   const i = state.inv.findIndex(x=>x && x.uid===uid);
   if(i>=0) state.inv.splice(i,1);
-}
-function equipItem(uid){
+}function equipItem(uid){
   const it = invFind(uid);
   if(!it) return;
   const tpl = TPL[it.tplId];
   if(!tpl || !tpl.slot) return;
-
   const slot = tpl.slot;
   const prevId = state.equip[slot];
   const prevOpt = state.eopt[slot] || [];
@@ -650,20 +535,17 @@ function equipItem(uid){
       state.inv.push(back);
     }
   }
-
   state.equip[slot] = tpl.id;
   state.eopt[slot] = Array.isArray(it.opt) ? it.opt.slice() : [];
   invRemove(uid);
-}
-function sellItem(uid){
+}function sellItem(uid){
   const it = invFind(uid);
   if(!it) return;
   const tpl = TPL[it.tplId];
   if(!tpl) return;
   state.gold += (tpl.price||0) * (it.n||1);
   invRemove(uid);
-}
-function sellAllJunk(){
+}function sellAllJunk(){
   let gain=0;
   state.inv = state.inv.filter(it=>{
     const tpl = it && TPL[it.tplId];
@@ -675,13 +557,11 @@ function sellAllJunk(){
   });
   state.gold += gain;
   dom.shopHint.textContent = gain>0 ? `잡템 판매 +${gain}G` : '판매할 잡템이 없습니다.';
-}
-function useConsumable(uid){
+}function useConsumable(uid){
   const it = invFind(uid);
   if(!it) return;
   const tpl = TPL[it.tplId];
   if(!tpl || tpl.type!=='consumable') return;
-
   // hero box
   if(tpl.box || tpl.id==='hero_box'){
     const ok = openHeroBox(it);
@@ -690,22 +570,17 @@ function useConsumable(uid){
     else invRemove(uid);
     return;
   }
-
   if(tpl.healHP) state.hp = Math.min(state.hpMax, state.hp + tpl.healHP);
   if(tpl.healMP) state.mp = Math.min(state.mpMax, state.mp + tpl.healMP);
-
   if((it.n||1) > 1) it.n -= 1;
   else invRemove(uid);
-}
-function consumeProtect(){
+}function consumeProtect(){
   const it = state.inv.find(x=>x && x.tplId==='protect_scroll' && (x.n||1)>0);
   if(!it) return false;
   if((it.n||1)>1) it.n -= 1;
   else invRemove(it.uid);
   return true;
-}
-
-// ---------- PIXI app ----------
+}// ---------- PIXI app ----------
 const app = new PIXI.Application({
   width: BASE_W, height: BASE_H, backgroundAlpha: 0,
   antialias: false,
@@ -717,7 +592,6 @@ dom.root.appendChild(app.view);
 app.view.style.position = 'absolute';
 app.view.style.left = '0px';
 app.view.style.top = '0px';
-
 function resize(){
   const r = dom.stage16.getBoundingClientRect();
   const w = Math.max(1, Math.floor(r.width));
@@ -726,11 +600,9 @@ function resize(){
   app.view.style.height = h+'px';
   const s = Math.min(w/BASE_W, h/BASE_H);
   document.documentElement.style.setProperty('--uiScale', s.toFixed(4));
-}
-window.addEventListener('resize', resize, {passive:true});
+}window.addEventListener('resize', resize, {passive:true});
 window.addEventListener('orientationchange', resize, {passive:true});
 resize();
-
 // world layers
 const world = new PIXI.Container();
 app.stage.addChild(world);
@@ -738,30 +610,23 @@ const layerBg = new PIXI.Container();
 const layerEnt = new PIXI.Container();
 const layerFx = new PIXI.Container();
 world.addChild(layerBg, layerEnt, layerFx);
-
 let bgG = new PIXI.Graphics();
 layerBg.addChild(bgG);
-
 function drawBg(){
   const m = MAPS[state.map];
   bgG.clear();
   bgG.beginFill(m.theme.bg, 1);
   bgG.drawRect(0,0,m.w,m.h);
   bgG.endFill();
-
   bgG.lineStyle(1, m.theme.grid, 0.35);
   const step = 80;
   for(let x=0;x<=m.w;x+=step){ bgG.moveTo(x,0); bgG.lineTo(x,m.h); }
   for(let y=0;y<=m.h;y+=step){ bgG.moveTo(0,y); bgG.lineTo(m.w,y); }
-
   bgG.lineStyle(6, 0x000000, 0.55);
   bgG.drawRect(0,0,m.w,m.h);
-}
-
-const player = new PIXI.Graphics();
+}const player = new PIXI.Graphics();
 player.beginFill(0xffffff,1).drawCircle(0,0,16).endFill();
 layerEnt.addChild(player);
-
 const blades = [];
 function setBladeCount(n){
   while(blades.length < n){
@@ -774,8 +639,7 @@ function setBladeCount(n){
     layerEnt.removeChild(g);
     g.destroy();
   }
-}
-function drawBlades(){
+}function drawBlades(){
   const w = TPL[state.equip.weapon];
   const rarity = w?.rarity || 1;
   const color = (rarity===4)?0xff78c8 : (rarity===3)?0xffd06b : (rarity===2)?0x78ffd2 : 0x9bd0ff;
@@ -786,23 +650,17 @@ function drawBlades(){
     b.drawCircle(0,0,size);
     b.endFill();
   }
-}
-setBladeCount(1);
+}setBladeCount(1);
 drawBlades();
-
 function rebuildPortals(){
   runtime.portals = MAPS[state.map].portals.map(p=>({...p}));
-}
-
-let portalG = new PIXI.Graphics();
+}let portalG = new PIXI.Graphics();
 layerEnt.addChild(portalG);
 let labelLayer = new PIXI.Container();
 layerEnt.addChild(labelLayer);
-
 function drawPortals(){
   portalG.clear();
   labelLayer.removeChildren().forEach(ch=>ch.destroy && ch.destroy());
-
   const makeLabel = (txt, x, y, color=0xffffff)=>{
     const t = new PIXI.Text(txt, {fontFamily:'Arial', fontSize:14, fill:color});
     t.anchor.set(0.5, 1.0);
@@ -810,7 +668,6 @@ function drawPortals(){
     t.alpha = 0.92;
     labelLayer.addChild(t);
   };
-
   for(const p of runtime.portals){
     portalG.lineStyle(3, 0x8fd3ff, 0.9);
     portalG.beginFill(0x2a6f9a, 0.22);
@@ -818,7 +675,6 @@ function drawPortals(){
     portalG.endFill();
     makeLabel(p.name, p.x, p.y-26, 0x9bd0ff);
   }
-
   if(state.map === 'town'){
     const npc = MAPS.town.npc;
     portalG.lineStyle(3, 0xffd06b, 0.9);
@@ -827,9 +683,7 @@ function drawPortals(){
     portalG.endFill();
     makeLabel(npc.name || '상점', npc.x, npc.y-26, 0xffd06b);
   }
-}
-
-function floatText(text, x, y){
+}function floatText(text, x, y){
   const t = new PIXI.Text(text, {fontFamily:'Arial', fontSize:14, fill:0xffffff});
   t.anchor.set(0.5);
   t.x = x; t.y = y;
@@ -849,8 +703,7 @@ function floatText(text, x, y){
     t.alpha = 1 - (tt/dur);
   };
   app.ticker.add(tick);
-}
-function burstFx(x,y,color){
+}function burstFx(x,y,color){
   const g = new PIXI.Graphics();
   layerFx.addChild(g);
   const start = performance.now();
@@ -869,20 +722,16 @@ function burstFx(x,y,color){
     g.drawCircle(x,y, 8 + p*60);
   };
   app.ticker.add(tick);
-}
-
-function respawnMonsters(){
+}function respawnMonsters(){
   for(const mo of runtime.monsters){ layerEnt.removeChild(mo.spr); mo.spr.destroy(); }
   runtime.monsters = [];
   runtime.bossSpawned = false;
   runtime.bossDefeated = false;
   runtime.hitCdUntil = 0;
   if(state.map === 'town') return;
-
   const m = MAPS[state.map];
   const cfg = m.mobs;
   const diff = MAP_DIFF[state.map] || MAP_DIFF.hunt;
-
   for(let i=0;i<cfg.n;i++){
     const spr = new PIXI.Graphics();
     const rr = (cfg.r0||14) + (i%3)*2;
@@ -891,7 +740,6 @@ function respawnMonsters(){
     spr.x = 900 + (i*73)% (m.w-1100);
     spr.y = 420 + (i*97)% (m.h-800);
     layerEnt.addChild(spr);
-
     runtime.monsters.push({
       spr,
       hp: Math.floor(cfg.hp * diff.hpMul),
@@ -903,9 +751,7 @@ function respawnMonsters(){
       dropGear: diff.dropGear,
     });
   }
-}
-
-function bossPreset(mapId){
+}function bossPreset(mapId){
   switch(mapId){
     case 'hunt':  return {name:'초록 군주', color:0xFF5B5B, r:30};
     case 'cave':  return {name:'동굴 거수', color:0xFF8FD3, r:32};
@@ -913,30 +759,23 @@ function bossPreset(mapId){
     case 'abyss': return {name:'심연 군주', color:0xC87AFF, r:36};
     default:      return {name:'보스', color:0xFF5B5B, r:32};
   }
-}
-
-function spawnBoss(){
+}function spawnBoss(){
   if(state.map==='town') return;
   if(runtime.bossSpawned || runtime.bossDefeated) return;
-
   const m = MAPS[state.map];
   const cfg = m.mobs;
   const diff = MAP_DIFF[state.map] || MAP_DIFF.hunt;
   const p = bossPreset(state.map);
-
   const hp = Math.floor((cfg.hp * diff.hpMul) * 7 + 120 + diff.tier*60);
   const atk = Math.floor((cfg.atk * diff.atkMul) * 1.7 + 6 + diff.tier*2);
   const def = Math.floor((cfg.def||0) + diff.tier);
-
   const spr = new PIXI.Graphics();
   spr.beginFill(p.color, 1).drawCircle(0,0,p.r).endFill();
   spr.lineStyle(3, 0x000000, 0.55).drawCircle(0,0,p.r+1);
-
   // spawn away from portal
   spr.x = Math.floor(m.w*0.74);
   spr.y = Math.floor(m.h*0.52);
   layerEnt.addChild(spr);
-
   runtime.monsters.push({
     spr,
     hp, hpMax: hp,
@@ -948,21 +787,16 @@ function spawnBoss(){
     bossName: p.name,
     mv: 62 + diff.tier*6,
   });
-
   runtime.bossSpawned = true;
   floatText(`BOSS 출현: ${p.name}`, spr.x, spr.y - (p.r+18));
   burstFx(spr.x, spr.y, 0xffd06b);
-}
-
-function spawnDrop(x,y, item){
+}function spawnDrop(x,y, item){
   const spr = new PIXI.Graphics();
   spr.beginFill(0xffd06b, 1).drawCircle(0,0,7).endFill();
   spr.x = x; spr.y = y;
   layerEnt.addChild(spr);
   runtime.drops.push({spr, x, y, item});
-}
-
-function moveToMap(id){
+}function moveToMap(id){
   if(!MAPS[id]) return;
   state.map = id;
   if(id==='town'){ state.pos.x = 760; state.pos.y = 680; }
@@ -972,17 +806,13 @@ function moveToMap(id){
   drawPortals();
   respawnMonsters();
   uiUpdate();
-}
-
-function cam(){
+}function cam(){
   const m = MAPS[state.map];
   const cx = clamp(state.pos.x, BASE_W*0.5, m.w-BASE_W*0.5);
   const cy = clamp(state.pos.y, BASE_H*0.5, m.h-BASE_H*0.5);
   world.x = -cx + BASE_W*0.5;
   world.y = -cy + BASE_H*0.5;
-}
-
-// -------- input --------
+}// -------- input --------
 function inputVector(){
   let dx=0, dy=0;
   if(runtime.keys.has('a')||runtime.keys.has('arrowleft')) dx-=1;
@@ -997,14 +827,10 @@ function inputVector(){
     dx*=inv; dy*=inv;
   }
   return {dx,dy,len};
-}
-
-window.addEventListener('keydown', (e)=>{
+}window.addEventListener('keydown', (e)=>{
   const k = String(e.key||'').toLowerCase();
   runtime.keys.add(k);
-
   if(e.repeat) return;
-
   if(k==='e'){ e.preventDefault(); interact(); return; }
   if(k==='f'){ e.preventDefault(); pickup(); return; }
   if(k==='r'){ e.preventDefault(); roll(); return; }
@@ -1014,19 +840,16 @@ window.addEventListener('keydown', (e)=>{
   if(k==='escape'){ closePanels(); return; }
 }, {passive:false});
 window.addEventListener('keyup', (e)=>{ runtime.keys.delete(String(e.key||'').toLowerCase()); }, {passive:true});
-
 // Joystick: window capture touch+pointer
 function initJoystick(){
   if(!dom.joyBase || !dom.joyStick) return;
   const base = dom.joyBase;
   const stick = dom.joyStick;
   base.style.touchAction = 'none';
-
   let MAX = 42;
   let active = false;
   let pid = null;
   let tid = null;
-
   function rectCenter(){
     const r = base.getBoundingClientRect();
     MAX = Math.max(28, Math.min(56, Math.floor(Math.min(r.width, r.height) * 0.28)));
@@ -1068,7 +891,6 @@ function initJoystick(){
     const r = base.getBoundingClientRect();
     return x>=r.left && x<=r.right && y>=r.top && y<=r.bottom;
   }
-
   function onPointerDown(e){
     if(pid!==null) return;
     if(!inBase(e.clientX, e.clientY)) return;
@@ -1092,7 +914,6 @@ function initJoystick(){
   window.addEventListener('pointermove', onPointerMove, {capture:true, passive:false});
   window.addEventListener('pointerup', onPointerUp, {capture:true, passive:false});
   window.addEventListener('pointercancel', onPointerUp, {capture:true, passive:false});
-
   function pickTouch(list, id){
     for(let i=0;i<list.length;i++) if(list[i].identifier===id) return list[i];
     return null;
@@ -1124,23 +945,18 @@ function initJoystick(){
   window.addEventListener('touchmove', onTouchMove, {capture:true, passive:false});
   window.addEventListener('touchend', onTouchEnd, {capture:true, passive:false});
   window.addEventListener('touchcancel', onTouchEnd, {capture:true, passive:false});
-}
-
-function btnTap(btn, fn){
+}function btnTap(btn, fn){
   const handler = (e)=>{ e.preventDefault(); fn(); };
   btn.addEventListener('click', handler, {passive:false});
   btn.addEventListener('touchstart', handler, {passive:false});
-}
-
-// actions
+}// actions
 function roll(){ runtime.rollingUntil = now() + 0.35; }
 function skill1(){
   if(state.mp >= 10){
     state.mp -= 10;
     state.hp = Math.min(state.hpMax, state.hp + 22);
   }
-}
-function skill2(){
+}function skill2(){
   if(state.mp >= 14){
     state.mp -= 14;
     for(const mo of runtime.monsters){
@@ -1150,11 +966,8 @@ function skill2(){
       }
     }
   }
-}
-
-function interact(){
+}function interact(){
   const px=state.pos.x, py=state.pos.y;
-
   if(state.map==='town'){
     const npc = MAPS.town.npc;
     if(dist2(px,py,npc.x,npc.y) <= 110*110){
@@ -1163,7 +976,6 @@ function interact(){
       return;
     }
   }
-
   for(const p of runtime.portals){
     if(dist2(px,py,p.x,p.y) <= 110*110){
       moveToMap(p.to);
@@ -1171,12 +983,9 @@ function interact(){
       return;
     }
   }
-
   const diff = MAP_DIFF[state.map] || MAP_DIFF.hunt;
   dom.shopHint.textContent = `(${MAPS[state.map].name} / ${diff.label}) 근처에 상호작용 대상이 없습니다.`;
-}
-
-function pickup(){
+}function pickup(){
   const px=state.pos.x, py=state.pos.y;
   let best=null, bestD=1e18;
   for(const d of runtime.drops){
@@ -1184,10 +993,8 @@ function pickup(){
     if(dd<bestD){ bestD=dd; best=d; }
   }
   if(!best || bestD>120*120) return;
-
   const tpl = TPL[best.item.tplId];
   if(!tpl) return;
-
   if(tpl.stack){
     const ex = state.inv.find(it=>it && it.tplId===tpl.id);
     if(ex) ex.n = (ex.n||1) + 1;
@@ -1199,19 +1006,14 @@ function pickup(){
     if(state.inv.length >= state.invMax) return;
     state.inv.push(best.item);
   }
-
   layerEnt.removeChild(best.spr);
   best.spr.destroy();
   runtime.drops = runtime.drops.filter(x=>x!==best);
-
   renderInv();
-}
-
-// enhancement
+}// enhancement
 function enhanceCost(){
   return Math.floor(60 + state.weaponPlus*55 + Math.max(0, state.weaponPlus-6)*25);
-}
-function enhanceRate(){
+}function enhanceRate(){
   // 단계별 고정 확률 테이블
   // +0~+1: 쉬움 / +2~+3: 어려움 / +4~+6: 매우 어려움 / +7+: 지옥
   const table = [
@@ -1232,17 +1034,14 @@ function enhanceRate(){
   ];
   const plus = Math.max(0, (state.weaponPlus|0));
   return table[Math.min(plus, table.length-1)];
-}
-function refreshShop(){
+}function refreshShop(){
   const cost = enhanceCost();
   const rate = enhanceRate();
   const prot = state.inv.find(x=>x && x.tplId==='protect_scroll');
   const protN = prot ? (prot.n||1) : 0;
   dom.shopHint.textContent = `무기강화 비용: ${cost}G / 현재 +${state.weaponPlus} / 성공확률 ${(rate*100).toFixed(0)}% / 보호권 ${protN}개`;
   dom.enhanceHint.textContent = `성공: 블레이드+1 / ATK·RANGE·CRIT 소폭 증가 · 실패: +4부터 단계하락(보호권 1개로 방지 가능)`;
-}
-
-function upgradeWeapon(){
+}function upgradeWeapon(){
   const cost = enhanceCost();
   const rate = enhanceRate();
   if(state.gold < cost){
@@ -1250,7 +1049,6 @@ function upgradeWeapon(){
     return;
   }
   state.gold -= cost;
-
   const ok = Math.random() < rate;
   if(ok){
     state.weaponPlus += 1;
@@ -1261,7 +1059,6 @@ function upgradeWeapon(){
   } else {
     let downgraded = false;
     let protectedOk = false;
-
     if(state.weaponPlus >= 4){
       protectedOk = consumeProtect();
       if(!protectedOk){
@@ -1271,7 +1068,6 @@ function upgradeWeapon(){
         downgraded = true;
       }
     }
-
     burstFx(state.pos.x, state.pos.y, 0xff5b5b);
     if(protectedOk){
       floatText('강화 실패 (보호권 사용: 단계 유지)', state.pos.x, state.pos.y-28);
@@ -1281,33 +1077,27 @@ function upgradeWeapon(){
       floatText('강화 실패', state.pos.x, state.pos.y-28);
     }
   }
-
   uiUpdate();
   renderEquip();
   renderInv();
   refreshShop();
-}
-
-// minimap
+}// minimap
 const mm = dom.minimap.getContext('2d');
 function drawMinimap(){
   const m = MAPS[state.map];
   mm.clearRect(0,0,dom.minimap.width, dom.minimap.height);
   mm.fillStyle = 'rgba(0,0,0,0.35)';
   mm.fillRect(0,0,dom.minimap.width, dom.minimap.height);
-
   const pad = 8;
   const w = dom.minimap.width - pad*2;
   const h = dom.minimap.height - pad*2;
   mm.strokeStyle = 'rgba(255,255,255,0.25)';
   mm.lineWidth = 2;
   mm.strokeRect(pad,pad,w,h);
-
   const sx = w / m.w;
   const sy = h / m.h;
   const px = (x)=>pad + x*sx;
   const py = (y)=>pad + y*sy;
-
   // portals
   mm.fillStyle = 'rgba(143,211,255,0.9)';
   for(const p of runtime.portals){
@@ -1328,18 +1118,14 @@ function drawMinimap(){
   // player
   mm.fillStyle='rgba(255,255,255,0.95)';
   mm.beginPath(); mm.arc(px(state.pos.x),py(state.pos.y),4.2,0,Math.PI*2); mm.fill();
-}
-
-// ---------- UI bindings ----------
+}// ---------- UI bindings ----------
 dom.shade.addEventListener('click', closePanels);
 dom.btnInv.addEventListener('click', ()=>{ renderEquip(); renderInv(); openPanel(dom.panelInv); }, {passive:true});
 dom.btnShop.addEventListener('click', ()=>{ refreshShop(); openPanel(dom.panelShop); }, {passive:true});
 dom.btnCloseInv.addEventListener('click', closePanels, {passive:true});
 dom.btnCloseShop.addEventListener('click', closePanels, {passive:true});
 dom.btnSellAllJunk.addEventListener('click', (e)=>{ e.preventDefault(); sellAllJunk(); uiUpdate(); renderInv(); }, {passive:false});
-
 dom.btnDebug.addEventListener('click', ()=>{ dom.debug.classList.toggle('on'); }, {passive:true});
-
 dom.btnBuyHP.addEventListener('click', (e)=>{
   e.preventDefault();
   if(state.gold<30) return;
@@ -1352,7 +1138,6 @@ dom.btnBuyHP.addEventListener('click', (e)=>{
   }
   uiUpdate(); renderInv(); renderEquip();
 },{passive:false});
-
 dom.btnBuyMP.addEventListener('click', (e)=>{
   e.preventDefault();
   if(state.gold<30) return;
@@ -1365,7 +1150,6 @@ dom.btnBuyMP.addEventListener('click', (e)=>{
   }
   uiUpdate(); renderInv(); renderEquip();
 },{passive:false});
-
 dom.btnBuyProtect.addEventListener('click', (e)=>{
   e.preventDefault();
   if(state.gold<80) return;
@@ -1378,28 +1162,23 @@ dom.btnBuyProtect.addEventListener('click', (e)=>{
   }
   uiUpdate(); renderInv(); renderEquip();
 },{passive:false});
-
 dom.btnUpgrade.addEventListener('click', (e)=>{ e.preventDefault(); upgradeWeapon(); }, {passive:false});
-
 btnTap(dom.btnE, ()=>interact());
 btnTap(dom.btnR, ()=>roll());
 btnTap(dom.btnF, ()=>pickup());
 btnTap(dom.btn1, ()=>skill1());
 btnTap(dom.btn2, ()=>skill2());
 btnTap(dom.btnAtk, ()=>upgradeWeapon());
-
 // ---------- start ----------
 state.inv.push(makeItem('hp_potion'));
 state.inv.push(makeItem('mp_potion'));
 state.inv.push(makeItem('junk'));
 initJoystick();
-
 moveToMap('town');
 uiUpdate();
 refreshShop();
 renderEquip();
 renderInv();
-
 // update loop
 let last = performance.now();
 app.ticker.add(()=>{
@@ -1407,13 +1186,11 @@ app.ticker.add(()=>{
   const dt = clamp((t-last)/1000, 0.001, 0.05);
   last = t;
   runtime.t = now();
-
   // town regen (safe zone)
   if(state.map==='town' && !runtime.dead){
     state.hp = Math.min(state.hpMax, state.hp + state.hpMax*0.015*dt);
     state.mp = Math.min(state.mpMax, state.mp + state.mpMax*0.020*dt);
   }
-
   // death state (freeze + auto respawn in town)
   if(runtime.dead){
     state.hp = 0;
@@ -1438,17 +1215,13 @@ app.ticker.add(()=>{
     }
     return;
   }
-
-
   const iv = inputVector();
   const spd = (runtime.rollingUntil > runtime.t) ? 380 : 190;
   state.pos.x += iv.dx * spd * dt;
   state.pos.y += iv.dy * spd * dt;
-
   const m = MAPS[state.map];
   state.pos.x = clamp(state.pos.x, 24, m.w-24);
   state.pos.y = clamp(state.pos.y, 24, m.h-24);
-
   // blades orbit
   const n = blades.length;
   const angBase = runtime.t * 4.2;
@@ -1459,7 +1232,6 @@ app.ticker.add(()=>{
     blades[i].x = state.pos.x + Math.cos(ang)*rangeBase;
     blades[i].y = state.pos.y + Math.sin(ang)*rangeBase;
   }
-
   // hit monsters (blade contact)
   for(let i=0;i<n;i++){
     const bx=blades[i].x, by=blades[i].y;
@@ -1474,7 +1246,6 @@ app.ticker.add(()=>{
           mo.hp=0;
           const g = mo.gold[0] + ((mo.spr.x + mo.spr.y + i*7) % (mo.gold[1]-mo.gold[0]+1));
           state.gold += Math.floor(g);
-
           if(mo.isBoss){
             runtime.bossDefeated = true;
             // boss reward: heroic chance box
@@ -1495,13 +1266,11 @@ app.ticker.add(()=>{
               if(it) spawnDrop(mo.spr.x, mo.spr.y, it);
             }
           }
-
           mo.spr.visible=false;
         }
       }
     }
   }
-
   // spawn boss when all normal monsters are cleared
   if(state.map!=='town' && !runtime.bossSpawned && !runtime.bossDefeated){
     let anyAlive = false;
@@ -1512,10 +1281,8 @@ app.ticker.add(()=>{
       spawnBoss();
     }
   }
-
   player.x = state.pos.x;
   player.y = state.pos.y;
-
   // monster chase in hunt maps
   if(state.map!=='town'){
     for(const mo of runtime.monsters){
@@ -1528,7 +1295,6 @@ app.ticker.add(()=>{
       mo.spr.y += (dy/len)*mv;
     }
   }
-
   // monster contact damage (player hp)
   if(state.map!=='town'){
     const invuln = (runtime.rollingUntil > runtime.t) || (runtime.invulnUntil > runtime.t);
@@ -1541,21 +1307,18 @@ app.ticker.add(()=>{
           state.hp -= dmg;
           runtime.hitCdUntil = runtime.t + 0.45;
           runtime.invulnUntil = runtime.t + 0.20;
-
           // knockback
           const dx = state.pos.x - mo.spr.x;
           const dy = state.pos.y - mo.spr.y;
           const len = Math.sqrt(dx*dx+dy*dy) || 1;
           state.pos.x = clamp(state.pos.x + (dx/len)*42, 24, m.w-24);
           state.pos.y = clamp(state.pos.y + (dy/len)*42, 24, m.h-24);
-
           burstFx(state.pos.x, state.pos.y, 0xff5b5b);
           floatText(`-${dmg}`, state.pos.x, state.pos.y-30);
           break;
         }
       }
     }
-
     if(state.hp <= 0 && !runtime.dead){
       state.hp = 0;
       runtime.dead = true;
@@ -1564,15 +1327,12 @@ app.ticker.add(()=>{
       burstFx(state.pos.x, state.pos.y, 0xffffff);
     }
   }
-
   cam();
   uiUpdate();
   drawMinimap();
-
   if(dom.debug.classList.contains('on')){
     dom.debug.textContent =
       `VER ${VERSION}\nMAP ${state.map}\nJOY dx=${runtime.joy.dx.toFixed(2)} dy=${runtime.joy.dy.toFixed(2)} act=${runtime.joy.active}\nPOS ${state.pos.x.toFixed(0)},${state.pos.y.toFixed(0)}\nPLUS +${state.weaponPlus} BLADES ${blades.length}\nINV ${state.inv.length}/${state.invMax} DROPS ${runtime.drops.length}`;
   }
 });
-
 })();
