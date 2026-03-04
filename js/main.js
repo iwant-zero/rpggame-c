@@ -1,6 +1,6 @@
 (()=>{"use strict";
 
-const VERSION = 'eg-new4-d4-bgm10fix2';
+const VERSION = 'eg-new4-d4-dmgdeath2';
 const BASE_W = 960, BASE_H = 540;
 
 const $ = (id)=>document.getElementById(id);
@@ -394,6 +394,9 @@ const runtime = {
   keys: new Set(),
   joy: {active:false, dx:0, dy:0, baseX:0, baseY:0},
   rollingUntil: 0,
+  invulUntil: 0,
+  deadUntil: 0,
+  respawnAt: 0,
   portals: [],
   monsters: [],
   drops: [],
@@ -820,6 +823,7 @@ function respawnMonsters(){
     layerEnt.addChild(spr);
 
     runtime.monsters.push({
+      r: rr,
       spr,
       hp: Math.floor(cfg.hp * diff.hpMul),
       hpMax: Math.floor(cfg.hp * diff.hpMul),
@@ -831,6 +835,82 @@ function respawnMonsters(){
     });
   }
 }
+
+/*__PLAYER_DAMAGE_DEATH__*/
+function isPlayerDead(t){ return !!runtime.deadUntil && t < runtime.deadUntil; }
+
+function diePlayer(){
+  const t = now();
+  if(isPlayerDead(t)) return;
+  state.hp = 0;
+  closePanels();
+  burstFx(state.pos.x, state.pos.y, 0xff5b5b);
+  floatText('사망', state.pos.x, state.pos.y-24);
+  runtime.deadUntil = t + 0.85;
+  runtime.respawnAt = t + 0.85;
+  runtime.invulUntil = t + 0.85;
+}
+
+function respawnAtTown(){
+  const t = now();
+  runtime.deadUntil = 0;
+  runtime.respawnAt = 0;
+  moveToMap('town');
+  uiUpdate();
+  state.hp = Math.max(1, Math.floor(state.hpMax * 0.75));
+  state.mp = Math.max(0, Math.floor(state.mpMax * 0.50));
+  runtime.invulUntil = t + 1.20;
+  burstFx(state.pos.x, state.pos.y, 0x5bb8ff);
+  floatText('마을에서 부활', state.pos.x, state.pos.y-26);
+  uiUpdate();
+}
+
+function applyPlayerDamage(dmg, srcX, srcY){
+  const t = now();
+  if(isPlayerDead(t)) return;
+  if(t < (runtime.invulUntil||0)) return;
+
+  const st = computeStats();
+  const finalDmg = Math.max(1, Math.floor(dmg - st.def*0.35));
+  state.hp -= finalDmg;
+
+  // knockback a bit
+  const dx = state.pos.x - srcX;
+  const dy = state.pos.y - srcY;
+  const len = Math.sqrt(dx*dx+dy*dy) || 1;
+  state.pos.x += (dx/len) * 18;
+  state.pos.y += (dy/len) * 18;
+
+  runtime.invulUntil = t + 0.45;
+  burstFx(state.pos.x, state.pos.y, 0xff5b5b);
+  floatText(`-${finalDmg}`, state.pos.x, state.pos.y-22);
+
+  if(state.hp <= 0){
+    diePlayer();
+  }
+}
+
+function tickMonsterContactDamage(){
+  const t = now();
+  if(isPlayerDead(t)) return;
+  if(state.map === 'town') return;
+  if(t < (runtime.invulUntil||0)) return;
+
+  const px = state.pos.x, py = state.pos.y;
+  const pr = 18;
+
+  for(const mo of runtime.monsters){
+    if(!mo || mo.hp<=0) continue;
+    const mr = mo.r || 16;
+    const rr = pr + mr;
+    if(dist2(px,py, mo.spr.x, mo.spr.y) <= rr*rr){
+      const base = (mo.atk!=null ? mo.atk : 6);
+      applyPlayerDamage(Math.max(1, Math.floor(base)), mo.spr.x, mo.spr.y);
+      break;
+    }
+  }
+}
+
 
 function spawnDrop(x,y, item){
   const spr = new PIXI.Graphics();
@@ -1011,7 +1091,7 @@ function btnTap(btn, fn){
 }
 
 // actions
-function roll(){ runtime.rollingUntil = now() + 0.35; }
+function roll(){ const t=now(); if(isPlayerDead(t)) return; runtime.rollingUntil = t + 0.35; }
 function skill1(){
   if(state.mp >= 10){
     state.mp -= 10;
@@ -1268,14 +1348,28 @@ app.ticker.add(()=>{
   last = t;
   runtime.t = now();
 
-  const iv = inputVector();
-  const spd = (runtime.rollingUntil > runtime.t) ? 380 : 190;
+  // death/respawn
+  if(runtime.respawnAt && runtime.t >= runtime.respawnAt){
+    respawnAtTown();
+  }
+  const dead = isPlayerDead(runtime.t);
+
+
+  const iv = dead ? {dx:0, dy:0} : inputVector();
+  const spd = dead ? 0 : ((runtime.rollingUntil > runtime.t) ? 380 : 190);
   state.pos.x += iv.dx * spd * dt;
   state.pos.y += iv.dy * spd * dt;
 
   const m = MAPS[state.map];
   state.pos.x = clamp(state.pos.x, 24, m.w-24);
   state.pos.y = clamp(state.pos.y, 24, m.h-24);
+
+  if(dead){
+    cam();
+    uiUpdate();
+    drawMinimap();
+    return;
+  }
 
   // blades orbit
   const n = blades.length;
@@ -1333,6 +1427,9 @@ app.ticker.add(()=>{
       mo.spr.y += (dy/len)*mv;
     }
   }
+
+  // monsters contact damage -> player hp
+  tickMonsterContactDamage();
 
   cam();
   uiUpdate();
