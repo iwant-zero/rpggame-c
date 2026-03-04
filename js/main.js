@@ -1,6 +1,6 @@
 (()=>{"use strict";
 
-const VERSION = 'eg-new4-d4-bgm';
+const VERSION = 'eg-new4-d4-bgm-hitfix1';
 const BASE_W = 960, BASE_H = 540;
 
 const $ = (id)=>document.getElementById(id);
@@ -481,6 +481,7 @@ const runtime = {
   keys: new Set(),
   joy: {active:false, dx:0, dy:0, baseX:0, baseY:0},
   rollingUntil: 0,
+  hurtUntil: 0,
   portals: [],
   monsters: [],
   drops: [],
@@ -908,6 +909,7 @@ function respawnMonsters(){
 
     runtime.monsters.push({
       spr,
+      r: rr,
       hp: Math.floor(cfg.hp * diff.hpMul),
       hpMax: Math.floor(cfg.hp * diff.hpMul),
       atk: Math.floor(cfg.atk * diff.atkMul),
@@ -1408,16 +1410,41 @@ app.ticker.add(()=>{
   player.x = state.pos.x;
   player.y = state.pos.y;
 
-  // monster chase in hunt maps
+  // monster chase + touch damage
   if(state.map!=='town'){
     for(const mo of runtime.monsters){
       if(mo.hp<=0) continue;
+
+      // chase
       const dx = state.pos.x - mo.spr.x;
       const dy = state.pos.y - mo.spr.y;
       const len = Math.sqrt(dx*dx+dy*dy) || 1;
       const mv = 42 * dt;
       mo.spr.x += (dx/len)*mv;
       mo.spr.y += (dy/len)*mv;
+
+      // touch hit (player takes damage)
+      if(state.hp>0 && runtime.rollingUntil <= runtime.t && runtime.t >= runtime.hurtUntil){
+        const dx2 = state.pos.x - mo.spr.x;
+        const dy2 = state.pos.y - mo.spr.y;
+        const rr = (mo.r||18) + 18;
+        if(dx2*dx2 + dy2*dy2 <= rr*rr){
+          const len2 = Math.sqrt(dx2*dx2+dy2*dy2) || 1;
+          const dmg = Math.max(1, Math.floor((mo.atk||6) - (st.def||0)*0.75));
+          state.hp = Math.max(0, state.hp - dmg);
+          runtime.hurtUntil = runtime.t + 0.45;
+
+          // small knockback
+          const kb = 14;
+          state.pos.x += (dx2/len2)*kb;
+          state.pos.y += (dy2/len2)*kb;
+          state.pos.x = clamp(state.pos.x, 24, m.w-24);
+          state.pos.y = clamp(state.pos.y, 24, m.h-24);
+
+          burstFx(state.pos.x, state.pos.y, 0xff3355);
+          floatText(`-${dmg}`, state.pos.x, state.pos.y-46);
+        }
+      }
     }
   }
 
