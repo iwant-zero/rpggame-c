@@ -1212,8 +1212,8 @@ function enhanceCost(){
   return Math.floor(60 + state.weaponPlus*55 + Math.max(0, state.weaponPlus-6)*25);
 }
 function enhanceRate(){
-  const p = 1.00 - state.weaponPlus*0.05;
-  return clamp(p, 0.90, 1.00);
+  const p = 0.90 - state.weaponPlus*0.07;
+  return clamp(p, 0.20, 0.90);
 }
 function refreshShop(){
   const cost = enhanceCost();
