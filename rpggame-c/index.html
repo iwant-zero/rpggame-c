@@ -6,8 +6,8 @@
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-  <title>Eternal Gate (new v3)</title>
-  <link rel="stylesheet" href="./style.css?v=eg-new3"/>
+  <title>Eternal Gate (new v4)</title>
+  <link rel="stylesheet" href="./style.css?v=eg-new4-d4-bgm"/>
 </head>
 <body>
   <div id="app">
@@ -21,7 +21,7 @@
               <div class="dot"></div>
               <div>
                 <div class="t">Eternal Gate</div>
-                <div class="s" id="verText">new v3</div>
+                <div class="s" id="verText">new v4</div>
               </div>
             </div>
 
@@ -54,12 +54,27 @@
               <button class="iconbtn" id="btnInv" title="인벤토리(I)">🎒</button>
               <button class="iconbtn" id="btnShop" title="상점(마을에서 E)">🛒</button>
               <button class="iconbtn" id="btnDebug" title="디버그">🛠️</button>
+              <button class="iconbtn" id="btnBgm" title="BGM(음악)">🔇</button>
             </div>
           </header>
 
           <section id="minimapWrap" class="glass">
             <canvas id="minimap" width="130" height="130"></canvas>
           </section>
+
+          <section id="bgmWrap" class="glass">
+            <div class="bgmRow">
+              <div class="bgmT">BGM</div>
+              <button class="btn btnMini" id="bgmToggle">OFF</button>
+            </div>
+            <div class="bgmRow">
+              <input id="bgmVol" type="range" min="0" max="100" value="40" />
+              <div class="bgmV" id="bgmVolText">40%</div>
+            </div>
+            <div class="bgmHint small" id="bgmHint">BGM: OFF (track1.mp3)</div>
+          </section>
+
+          <audio id="bgm" preload="auto" loop></audio>
 
           <footer id="bottombar">
             <div id="joyWrap" class="glass">
@@ -100,7 +115,7 @@
 
           <section id="panelShop" class="panel glass">
             <h3>상점</h3>
-            <div class="small">- <b>E</b>로 상점/포탈 상호작용<br/>- 사냥터 난이도: 일반(쉬움) / 동굴(보통) / 유적(어려움)</div>
+            <div class="small">- <b>E</b>로 상점/포탈 상호작용<br/>- 사냥터 난이도: 일반(쉬움) / 동굴(보통) / 유적(어려움) / 심연(매우 어려움)</div>
             <div class="row" style="margin-top:10px">
               <button class="btn" id="btnBuyHP">HP 포션(30G)</button>
               <button class="btn" id="btnBuyMP">MP 포션(30G)</button>
@@ -124,6 +139,6 @@
       if(dbg){ dbg.classList.add('on'); dbg.textContent = 'ERROR: ' + (e?.message || String(e)); }
     });
   </script>
-  <script src="./js/main.js?v=eg-new3"></script>
+  <script src="./js/main.js?v=eg-new4-d4-bgm"></script>
 </body>
 </html>

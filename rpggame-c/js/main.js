@@ -1,6 +1,6 @@
 (()=>{"use strict";
 
-const VERSION = 'eg-new3';
+const VERSION = 'eg-new4-d4-bgm';
 const BASE_W = 960, BASE_H = 540;
 
 const $ = (id)=>document.getElementById(id);
@@ -19,7 +19,7 @@ const dom = {
   joyHint: $('joyHint'),
 
   btnE: $('btnE'), btn1: $('btn1'), btn2: $('btn2'), btnR: $('btnR'), btnF: $('btnF'), btnAtk: $('btnAtk'),
-  btnInv: $('btnInv'), btnShop: $('btnShop'), btnDebug: $('btnDebug'),
+  btnInv: $('btnInv'), btnShop: $('btnShop'), btnDebug: $('btnDebug'), btnBgm: $('btnBgm'),
 
   debug: $('debug'),
   shade: $('panelShade'),
@@ -30,9 +30,152 @@ const dom = {
   panelShop: $('panelShop'), btnCloseShop: $('btnCloseShop'),
   btnBuyHP: $('btnBuyHP'), btnBuyMP: $('btnBuyMP'), btnBuyProtect: $('btnBuyProtect'), btnUpgrade: $('btnUpgrade'),
   shopHint: $('shopHint'), enhanceHint: $('enhanceHint'),
+
+  bgm: $('bgm'),
+  bgmToggle: $('bgmToggle'),
+  bgmVol: $('bgmVol'),
+  bgmVolText: $('bgmVolText'),
+  bgmHint: $('bgmHint'),
 };
 
 dom.verText.textContent = VERSION;
+
+// ---------- BGM (assets/bgm/track1.mp3) ----------
+const BGM_SRC = './assets/bgm/track1.mp3';
+const bgmState = {
+  on: false,
+  vol: 0.40,
+  triedAuto: false,
+};
+
+function bgmLoadPrefs(){
+  try{
+    const on = localStorage.getItem('eg_bgm_on');
+    const vol = localStorage.getItem('eg_bgm_vol');
+    if(on === '1') bgmState.on = true;
+    if(vol !== null){
+      const v = clamp(parseInt(vol,10)/100, 0, 1);
+      if(!Number.isNaN(v)) bgmState.vol = v;
+    }
+  }catch(_){}
+}
+function bgmSavePrefs(){
+  try{
+    localStorage.setItem('eg_bgm_on', bgmState.on ? '1' : '0');
+    localStorage.setItem('eg_bgm_vol', String(Math.round(bgmState.vol*100)));
+  }catch(_){}
+}
+
+function bgmApplyVolume(){
+  if(dom.bgm) dom.bgm.volume = clamp(bgmState.vol, 0, 1);
+  if(dom.bgmVol) dom.bgmVol.value = String(Math.round(bgmState.vol*100));
+  if(dom.bgmVolText) dom.bgmVolText.textContent = `${Math.round(bgmState.vol*100)}%`;
+}
+
+function bgmUpdateUI(){
+  if(dom.bgmToggle) dom.bgmToggle.textContent = bgmState.on ? 'ON' : 'OFF';
+  if(dom.btnBgm) dom.btnBgm.textContent = bgmState.on ? '🎵' : '🔇';
+  if(dom.bgmHint){
+    dom.bgmHint.textContent = bgmState.on
+      ? 'BGM: ON (track1.mp3)'
+      : 'BGM: OFF (track1.mp3)';
+  }
+}
+
+function bgmEnsureSrc(){
+  if(!dom.bgm) return;
+  if(!dom.bgm.src || !dom.bgm.src.includes('/assets/bgm/')){
+    dom.bgm.src = BGM_SRC;
+  }
+}
+
+function bgmTryPlay(){
+  if(!dom.bgm) return;
+  bgmEnsureSrc();
+  bgmApplyVolume();
+  const p = dom.bgm.play();
+  if(p && typeof p.catch === 'function'){
+    p.catch(()=>{
+      // autoplay blocked or file missing
+      bgmState.on = false;
+      bgmSavePrefs();
+      bgmUpdateUI();
+      if(dom.bgmHint){
+        dom.bgmHint.textContent = 'BGM 재생 실패: assets/bgm/track1.mp3 파일을 넣고 버튼을 다시 눌러주세요.';
+      }
+    });
+  }
+}
+
+function bgmStop(){
+  if(dom.bgm) dom.bgm.pause();
+}
+
+function bgmSet(on, userGesture=false){
+  bgmState.on = !!on;
+  bgmSavePrefs();
+  bgmUpdateUI();
+  if(!dom.bgm) return;
+  if(bgmState.on){
+    if(userGesture) bgmTryPlay();
+    else{
+      // 다음 첫 터치/클릭에서 재생 시도
+      if(bgmState.triedAuto) return;
+      bgmState.triedAuto = true;
+      const once = ()=>{
+        bgmTryPlay();
+        window.removeEventListener('pointerdown', once, true);
+        window.removeEventListener('touchstart', once, true);
+      };
+      window.addEventListener('pointerdown', once, {capture:true, passive:true});
+      window.addEventListener('touchstart', once, {capture:true, passive:true});
+    }
+  } else {
+    bgmStop();
+  }
+}
+
+bgmLoadPrefs();
+bgmApplyVolume();
+bgmUpdateUI();
+
+if(dom.bgmVol){
+  dom.bgmVol.addEventListener('input', ()=>{
+    const v = clamp(parseInt(dom.bgmVol.value,10)/100, 0, 1);
+    if(!Number.isNaN(v)) bgmState.vol = v;
+    bgmApplyVolume();
+    bgmSavePrefs();
+  }, {passive:true});
+}
+
+if(dom.bgmToggle){
+  dom.bgmToggle.addEventListener('click', (e)=>{
+    e.preventDefault();
+    bgmSet(!bgmState.on, true);
+  }, {passive:false});
+  dom.bgmToggle.addEventListener('touchstart', (e)=>{
+    e.preventDefault();
+    bgmSet(!bgmState.on, true);
+  }, {passive:false});
+}
+
+if(dom.btnBgm){
+  dom.btnBgm.addEventListener('click', (e)=>{
+    e.preventDefault();
+    bgmSet(!bgmState.on, true);
+  }, {passive:false});
+  dom.btnBgm.addEventListener('touchstart', (e)=>{
+    e.preventDefault();
+    bgmSet(!bgmState.on, true);
+  }, {passive:false});
+}
+
+// 페이지가 숨겨지면 일단 정지(모바일 배터리/인앱 대응)
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden) bgmStop();
+  else if(bgmState.on) bgmSet(true, false);
+}, {passive:true});
+
 
 function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
 function dist2(ax,ay,bx,by){ const dx=ax-bx, dy=ay-by; return dx*dx+dy*dy; }
@@ -127,13 +270,19 @@ function makeItem(tplId){
 // ---------- maps / difficulty ----------
 const MAPS = {
   town: { id:'town', name:'마을', w: 2200, h: 1400, theme: {bg:0x14223c, grid:0x1f2e50}, portals:[
-    {to:'hunt', name:'일반 사냥터', x: 1850, y: 680},
-    {to:'cave', name:'동굴 사냥터', x: 1850, y: 820},
-    {to:'ruins', name:'유적 사냥터', x: 1850, y: 960},
+    {to:'hunt', name:'일반 사냥터', x: 1850, y: 640},
+    {to:'cave', name:'동굴 사냥터', x: 1850, y: 780},
+    {to:'ruins', name:'유적 사냥터', x: 1850, y: 920},
+    {to:'abyss', name:'심연 사냥터', x: 1850, y: 1060},
   ], npc:{name:'상점', x: 520, y: 680}},
-  hunt: { id:'hunt', name:'일반 사냥터', w: 2600, h: 1700, theme:{bg:0x0f2b1f, grid:0x174434}, portals:[{to:'town', name:'마을', x: 360, y: 860}], mobs:{n:14, hp:40, atk:7, gold:[4,8]} },
-  cave: { id:'cave', name:'동굴 사냥터', w: 2600, h: 1700, theme:{bg:0x1a1a1a, grid:0x2a2a2a}, portals:[{to:'town', name:'마을', x: 360, y: 860}], mobs:{n:16, hp:55, atk:9, gold:[6,12]} },
-  ruins:{ id:'ruins',name:'유적 사냥터',w: 2800, h: 1800, theme:{bg:0x241a10, grid:0x3a2a18}, portals:[{to:'town', name:'마을', x: 360, y: 900}], mobs:{n:18, hp:75, atk:11, gold:[9,18]} },
+  hunt: { id:'hunt', name:'일반 사냥터', w: 2600, h: 1700, theme:{bg:0x0f2b1f, grid:0x174434}, portals:[{to:'town', name:'마을', x: 360, y: 860}],
+    mobs:{n:14, hp:40, atk:7, gold:[4,8], color:0x3bff7a, def:0} },
+  cave: { id:'cave', name:'동굴 사냥터', w: 2600, h: 1700, theme:{bg:0x1a1a1a, grid:0x2a2a2a}, portals:[{to:'town', name:'마을', x: 360, y: 860}],
+    mobs:{n:16, hp:55, atk:9, gold:[6,12], color:0x9bd0ff, def:1} },
+  ruins:{ id:'ruins',name:'유적 사냥터',w: 2800, h: 1800, theme:{bg:0x241a10, grid:0x3a2a18}, portals:[{to:'town', name:'마을', x: 360, y: 900}],
+    mobs:{n:18, hp:75, atk:11, gold:[9,18], color:0xffb44d, def:2} },
+  abyss:{ id:'abyss',name:'심연 사냥터',w: 3000, h: 1900, theme:{bg:0x0a0f1f, grid:0x1b2b55}, portals:[{to:'town', name:'마을', x: 380, y: 940}],
+    mobs:{n:20, hp:95, atk:14, gold:[14,26], color:0xc87aff, def:3} },
 };
 
 const MAP_DIFF = {
@@ -141,6 +290,7 @@ const MAP_DIFF = {
   hunt: { label:'쉬움', hpMul:0.95, atkMul:0.95, goldMul:0.95, tier:1, dropGear:0.10 },
   cave: { label:'보통', hpMul:1.05, atkMul:1.05, goldMul:1.10, tier:2, dropGear:0.16 },
   ruins:{ label:'어려움',hpMul:1.20, atkMul:1.15, goldMul:1.25, tier:3, dropGear:0.22 },
+  abyss:{ label:'매우 어려움', hpMul:1.35, atkMul:1.25, goldMul:1.45, tier:4, dropGear:0.30 },
 };
 
 const LOOT = {
@@ -149,6 +299,9 @@ const LOOT = {
        rare: ['rune_blade','scale_armor','power_ring'],
        epic: ['void_blade','guardian_armor','royal_ring'] },
   3: { gear: ['rune_blade','scale_armor','power_ring','iron_blade','leather_armor','swift_ring'],
+       rare: ['void_blade','guardian_armor','royal_ring'],
+       epic: ['void_blade','guardian_armor','royal_ring'] },
+  4: { gear: ['void_blade','guardian_armor','royal_ring','rune_blade','scale_armor','power_ring'],
        rare: ['void_blade','guardian_armor','royal_ring'],
        epic: ['void_blade','guardian_armor','royal_ring'] },
 };
@@ -601,8 +754,9 @@ function respawnMonsters(){
 
   for(let i=0;i<cfg.n;i++){
     const spr = new PIXI.Graphics();
-    const rr = 14 + (i%3)*2;
-    spr.beginFill(0x3bff7a, 1).drawCircle(0,0,rr).endFill();
+    const rr = (cfg.r0||14) + (i%3)*2;
+    const col = (cfg.color!=null) ? cfg.color : 0x3bff7a;
+    spr.beginFill(col, 1).drawCircle(0,0,rr).endFill();
     spr.x = 900 + (i*73)% (m.w-1100);
     spr.y = 420 + (i*97)% (m.h-800);
     layerEnt.addChild(spr);
@@ -612,7 +766,7 @@ function respawnMonsters(){
       hp: Math.floor(cfg.hp * diff.hpMul),
       hpMax: Math.floor(cfg.hp * diff.hpMul),
       atk: Math.floor(cfg.atk * diff.atkMul),
-      def: (state.map==='ruins') ? 2 : 0,
+      def: (cfg.def||0),
       gold: [Math.floor(cfg.gold[0]*diff.goldMul), Math.floor(cfg.gold[1]*diff.goldMul)],
       tier: diff.tier,
       dropGear: diff.dropGear,

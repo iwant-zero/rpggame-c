@@ -98,6 +98,20 @@ canvas{display:block; width:100%; height:100%}
 }
 #minimap{width:130px;height:130px;display:block;border-radius:14px;background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.12)}
 
+#bgmWrap{
+  position:absolute;
+  top:calc(234px + var(--safeTop));
+  right:calc(10px + var(--safeR));
+  width:150px;
+  padding:10px;
+}
+.bgmRow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.bgmT{font-weight:800;font-size:12px;opacity:.92}
+.bgmV{font-size:12px;opacity:.85;min-width:40px;text-align:right}
+.bgmHint{margin-top:2px;opacity:.75}
+#bgmVol{flex:1}
+.btnMini{padding:6px 10px;border-radius:12px;font-size:12px}
+
 #bottombar{
   position:absolute;
   left:calc(10px + var(--safeL));
@@ -211,6 +225,8 @@ canvas{display:block; width:100%; height:100%}
   #joyStick{width:66px;height:66px}
   #minimapWrap{width:140px}
   #minimap{width:120px;height:120px}
+  #bgmWrap{width:140px}
+  #bgmVol{width:90px}
 }
 
 
