@@ -189,6 +189,21 @@ canvas{display:block; width:100%; height:100%}
   display:none;
 }
 .panel.show{display:block}
+/* --- popup size tuning: inventory/shop panels (half size) --- */
+#panelInv, #panelShop{
+  width:min(86vw, 280px);      /* half of 560px */
+  padding:10px;               /* slightly tighter */
+  max-height:60vh;            /* keep smaller than before */
+  overflow:auto;              /* scroll if content exceeds */
+}
+#panelInv h3, #panelShop h3{font-size:16px}
+#panelInv .btn, #panelShop .btn{padding:8px 10px;border-radius:12px}
+#panelInv .small, #panelShop .small{font-size:11px}
+#panelInv .invList{max-height:140px}  /* half of 280px */
+@media (pointer:coarse){
+  #panelInv .invList{max-height:110px}
+}
+
 .panel h3{margin:0 0 10px; font-size:18px}
 .panel .row{display:flex; gap:10px; flex-wrap:wrap}
 .btn{
