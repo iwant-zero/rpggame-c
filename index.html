@@ -68,13 +68,20 @@
               <button class="btn btnMini" id="bgmToggle">OFF</button>
             </div>
             <div class="bgmRow">
+              <select id="bgmSelect" class="bgmSelect" title="BGM 트랙 선택"></select>
+            </div>
+            <div class="bgmRow">
+              <button class="btn btnMini" id="bgmPrev" title="이전 트랙">◀</button>
+              <button class="btn btnMini" id="bgmNext" title="다음 트랙">▶</button>
+            </div>
+            <div class="bgmRow">
               <input id="bgmVol" type="range" min="0" max="100" value="40" />
               <div class="bgmV" id="bgmVolText">40%</div>
             </div>
-            <div class="bgmHint small" id="bgmHint">BGM: OFF (track1.mp3)</div>
+            <div class="bgmHint small" id="bgmHint">BGM: OFF</div>
           </section>
 
-          <audio id="bgm" preload="auto" loop></audio>
+          <audio id="bgm" preload="auto"></audio>
 
           <footer id="bottombar">
             <div id="joyWrap" class="glass">

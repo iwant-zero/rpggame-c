@@ -33,6 +33,9 @@ const dom = {
 
   bgm: $('bgm'),
   bgmToggle: $('bgmToggle'),
+  bgmSelect: $('bgmSelect'),
+  bgmPrev: $('bgmPrev'),
+  bgmNext: $('bgmNext'),
   bgmVol: $('bgmVol'),
   bgmVolText: $('bgmVolText'),
   bgmHint: $('bgmHint'),
@@ -40,22 +43,33 @@ const dom = {
 
 dom.verText.textContent = VERSION;
 
-// ---------- BGM (assets/bgm/track1.mp3) ----------
-const BGM_SRC = './assets/bgm/track1.mp3';
+// ---------- BGM (assets/bgm/track1.mp3 ~ track50.*) ----------
+const BGM_DIR = './assets/bgm/';
+const BGM_MAX = 50;
+const BGM_EXTS = ['mp3','m4a','ogg','wav'];
+
 const bgmState = {
   on: false,
   vol: 0.40,
   triedAuto: false,
 };
 
+let bgmList = []; // [{name, url}]
+let bgmIdx = 0;
+
 function bgmLoadPrefs(){
   try{
     const on = localStorage.getItem('eg_bgm_on');
     const vol = localStorage.getItem('eg_bgm_vol');
+    const idx = localStorage.getItem('eg_bgm_idx');
     if(on === '1') bgmState.on = true;
     if(vol !== null){
       const v = clamp(parseInt(vol,10)/100, 0, 1);
       if(!Number.isNaN(v)) bgmState.vol = v;
+    }
+    if(idx !== null){
+      const n = parseInt(idx,10);
+      if(!Number.isNaN(n)) bgmIdx = n;
     }
   }catch(_){}
 }
@@ -63,6 +77,7 @@ function bgmSavePrefs(){
   try{
     localStorage.setItem('eg_bgm_on', bgmState.on ? '1' : '0');
     localStorage.setItem('eg_bgm_vol', String(Math.round(bgmState.vol*100)));
+    localStorage.setItem('eg_bgm_idx', String(bgmIdx));
   }catch(_){}
 }
 
@@ -72,26 +87,89 @@ function bgmApplyVolume(){
   if(dom.bgmVolText) dom.bgmVolText.textContent = `${Math.round(bgmState.vol*100)}%`;
 }
 
-function bgmUpdateUI(){
+function bgmCurName(){
+  if(!bgmList.length) return '—';
+  return bgmList[clamp(bgmIdx,0,bgmList.length-1)].name;
+}
+
+function bgmUpdateUI(extraHint=''){
   if(dom.bgmToggle) dom.bgmToggle.textContent = bgmState.on ? 'ON' : 'OFF';
   if(dom.btnBgm) dom.btnBgm.textContent = bgmState.on ? '🎵' : '🔇';
   if(dom.bgmHint){
-    dom.bgmHint.textContent = bgmState.on
-      ? 'BGM: ON (track1.mp3)'
-      : 'BGM: OFF (track1.mp3)';
+    const base = bgmState.on
+      ? `BGM: ON (AUTO 순차) — ${bgmCurName()}`
+      : `BGM: OFF — ${bgmCurName()}`;
+    dom.bgmHint.textContent = extraHint ? `${base} / ${extraHint}` : base;
+  }
+  if(dom.bgmSelect && bgmList.length){
+    const v = String(clamp(bgmIdx,0,bgmList.length-1));
+    if(dom.bgmSelect.value !== v) dom.bgmSelect.value = v;
   }
 }
 
-function bgmEnsureSrc(){
-  if(!dom.bgm) return;
-  if(!dom.bgm.src || !dom.bgm.src.includes('/assets/bgm/')){
-    dom.bgm.src = BGM_SRC;
+async function urlExists(url){
+  try{
+    const r = await fetch(url, {method:'HEAD', cache:'no-store'});
+    if(r && r.ok) return true;
+  }catch(_){}
+  try{
+    const r = await fetch(url, {method:'GET', headers:{'Range':'bytes=0-0'}, cache:'no-store'});
+    if(r && r.ok) return true;
+  }catch(_){}
+  return false;
+}
+
+async function detectTracks(){
+  const list = [];
+  for(let i=1;i<=BGM_MAX;i++){
+    let found = null;
+    for(const ext of BGM_EXTS){
+      const url = `${BGM_DIR}track${i}.${ext}`;
+      if(await urlExists(url)){
+        found = { name:`track${i}.${ext}`, url };
+        break;
+      }
+    }
+    if(found) list.push(found);
+    else break; // 연속 번호 전제(track1, track2, ...)
   }
+  return list;
+}
+
+function bgmBuildSelect(){
+  if(!dom.bgmSelect) return;
+  dom.bgmSelect.innerHTML = '';
+  for(let i=0;i<bgmList.length;i++){
+    const opt = document.createElement('option');
+    opt.value = String(i);
+    opt.textContent = bgmList[i].name;
+    dom.bgmSelect.appendChild(opt);
+  }
+  dom.bgmSelect.value = String(clamp(bgmIdx,0,Math.max(0,bgmList.length-1)));
+}
+
+function bgmSetTrack(idx, playNow){
+  if(!dom.bgm) return;
+  if(!bgmList.length){
+    // 목록이 아직 없으면 기본값으로
+    bgmList = [{name:'track1.mp3', url:`${BGM_DIR}track1.mp3`}];
+  }
+  bgmIdx = ((idx % bgmList.length) + bgmList.length) % bgmList.length;
+  bgmSavePrefs();
+
+  const item = bgmList[bgmIdx];
+  if(!dom.bgm.src || !dom.bgm.src.includes(item.url)){
+    dom.bgm.src = item.url;
+    dom.bgm.load();
+  }
+  bgmApplyVolume();
+  bgmUpdateUI();
+
+  if(playNow) bgmTryPlay();
 }
 
 function bgmTryPlay(){
   if(!dom.bgm) return;
-  bgmEnsureSrc();
   bgmApplyVolume();
   const p = dom.bgm.play();
   if(p && typeof p.catch === 'function'){
@@ -99,10 +177,7 @@ function bgmTryPlay(){
       // autoplay blocked or file missing
       bgmState.on = false;
       bgmSavePrefs();
-      bgmUpdateUI();
-      if(dom.bgmHint){
-        dom.bgmHint.textContent = 'BGM 재생 실패: assets/bgm/track1.mp3 파일을 넣고 버튼을 다시 눌러주세요.';
-      }
+      bgmUpdateUI('재생 실패: assets/bgm/track1.mp3~ 파일 확인 후 다시 ON');
     });
   }
 }
@@ -116,14 +191,18 @@ function bgmSet(on, userGesture=false){
   bgmSavePrefs();
   bgmUpdateUI();
   if(!dom.bgm) return;
+
   if(bgmState.on){
+    // 트랙이 아직 세팅 안 됐으면 세팅
+    bgmSetTrack(bgmIdx, false);
+
     if(userGesture) bgmTryPlay();
     else{
       // 다음 첫 터치/클릭에서 재생 시도
       if(bgmState.triedAuto) return;
       bgmState.triedAuto = true;
       const once = ()=>{
-        bgmTryPlay();
+        if(bgmState.on) bgmTryPlay();
         window.removeEventListener('pointerdown', once, true);
         window.removeEventListener('touchstart', once, true);
       };
@@ -137,7 +216,24 @@ function bgmSet(on, userGesture=false){
 
 bgmLoadPrefs();
 bgmApplyVolume();
-bgmUpdateUI();
+bgmUpdateUI('목록 확인 중…');
+
+// 트랙 목록 감지(있으면 자동 순차 재생 / 없으면 track1 고정)
+detectTracks().then((list)=>{
+  bgmList = (list && list.length) ? list : [{name:'track1.mp3', url:`${BGM_DIR}track1.mp3`}];
+  bgmIdx = clamp(bgmIdx, 0, bgmList.length-1);
+  bgmBuildSelect();
+  bgmSetTrack(bgmIdx, false);
+  bgmUpdateUI();
+
+  // 저장된 설정이 ON이면, 첫 입력에서 자동 재생 준비
+  if(bgmState.on) bgmSet(true, false);
+}).catch(()=>{
+  bgmList = [{name:'track1.mp3', url:`${BGM_DIR}track1.mp3`}];
+  bgmBuildSelect();
+  bgmSetTrack(0, false);
+  bgmUpdateUI('목록 감지 실패: track1.mp3만 사용');
+});
 
 if(dom.bgmVol){
   dom.bgmVol.addEventListener('input', ()=>{
@@ -169,6 +265,55 @@ if(dom.btnBgm){
     bgmSet(!bgmState.on, true);
   }, {passive:false});
 }
+
+if(dom.bgmSelect){
+  dom.bgmSelect.addEventListener('change', ()=>{
+    const n = parseInt(dom.bgmSelect.value, 10);
+    if(!Number.isNaN(n)) bgmSetTrack(n, bgmState.on);
+  }, {passive:true});
+}
+
+if(dom.bgmPrev){
+  dom.bgmPrev.addEventListener('click', (e)=>{
+    e.preventDefault();
+    bgmSetTrack(bgmIdx-1, true);
+  }, {passive:false});
+  dom.bgmPrev.addEventListener('touchstart', (e)=>{
+    e.preventDefault();
+    bgmSetTrack(bgmIdx-1, true);
+  }, {passive:false});
+}
+if(dom.bgmNext){
+  dom.bgmNext.addEventListener('click', (e)=>{
+    e.preventDefault();
+    bgmSetTrack(bgmIdx+1, true);
+  }, {passive:false});
+  dom.bgmNext.addEventListener('touchstart', (e)=>{
+    e.preventDefault();
+    bgmSetTrack(bgmIdx+1, true);
+  }, {passive:false});
+}
+
+// 오디오가 끝나면 다음 트랙(순차), 1개뿐이면 반복
+if(dom.bgm){
+  dom.bgm.addEventListener('ended', ()=>{
+    if(!bgmState.on) return;
+    if(bgmList.length<=1) bgmSetTrack(bgmIdx, true);
+    else bgmSetTrack(bgmIdx+1, true);
+  }, {passive:true});
+
+  dom.bgm.addEventListener('error', ()=>{
+    if(!bgmState.on) return;
+    // 파일 누락/오류면 다음 트랙으로 스킵
+    if(bgmList.length>1) bgmSetTrack(bgmIdx+1, true);
+    else{
+      bgmState.on = false;
+      bgmSavePrefs();
+      bgmUpdateUI('파일 오류');
+    }
+  }, {passive:true});
+}
+
 
 // 페이지가 숨겨지면 일단 정지(모바일 배터리/인앱 대응)
 document.addEventListener('visibilitychange', ()=>{
