@@ -1,9 +1,12 @@
 (()=>{"use strict";
 
-const VERSION = 'eg-new4-d4-bgm';
+const VERSION = 'eg-new4-d4-bgm10fix2';
 const BASE_W = 960, BASE_H = 540;
 
 const $ = (id)=>document.getElementById(id);
+
+function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
+
 
 const dom = {
   stage16: $('stage16'),
@@ -40,22 +43,46 @@ const dom = {
 
 dom.verText.textContent = VERSION;
 
-// ---------- BGM (assets/bgm/track1.mp3) ----------
-const BGM_SRC = './assets/bgm/track1.mp3';
+// ---------- BGM (assets/bgm/track1.mp3 ~ track10.mp3, 순차 순환) ----------
+const BGM_FILES = Array.from({length: 10}, (_,i)=>`track${i+1}.mp3`);
+// Pages 루트(/)와 /rpggame-c/ 둘 다에서 동작하게 폴백 경로를 둔다.
+const BGM_BASES = ['./assets/bgm/', '../assets/bgm/'];
+
 const bgmState = {
   on: false,
   vol: 0.40,
   triedAuto: false,
+  idx: 0,          // 0..9
+  failCycle: 0,    // 연속 실패(파일 없음 등) 카운터
+  base: 0,         // 0..BGM_BASES.length-1
 };
+
+function bgmTrackLabel(){ return `track${bgmState.idx+1}`; }
+function bgmUrlFor(){
+  const base = BGM_BASES[Math.max(0, Math.min(BGM_BASES.length-1, bgmState.base))];
+  return base + BGM_FILES[bgmState.idx];
+}
 
 function bgmLoadPrefs(){
   try{
     const on = localStorage.getItem('eg_bgm_on');
     const vol = localStorage.getItem('eg_bgm_vol');
+    const idx = localStorage.getItem('eg_bgm_idx');
+    const base = localStorage.getItem('eg_bgm_base');
+
     if(on === '1') bgmState.on = true;
+
     if(vol !== null){
       const v = clamp(parseInt(vol,10)/100, 0, 1);
       if(!Number.isNaN(v)) bgmState.vol = v;
+    }
+    if(idx !== null){
+      const n = parseInt(idx, 10);
+      if(Number.isFinite(n)) bgmState.idx = clamp(n, 0, BGM_FILES.length-1);
+    }
+    if(base !== null){
+      const b = parseInt(base, 10);
+      if(Number.isFinite(b)) bgmState.base = clamp(b, 0, BGM_BASES.length-1);
     }
   }catch(_){}
 }
@@ -63,6 +90,8 @@ function bgmSavePrefs(){
   try{
     localStorage.setItem('eg_bgm_on', bgmState.on ? '1' : '0');
     localStorage.setItem('eg_bgm_vol', String(Math.round(bgmState.vol*100)));
+    localStorage.setItem('eg_bgm_idx', String(bgmState.idx));
+    localStorage.setItem('eg_bgm_base', String(bgmState.base));
   }catch(_){}
 }
 
@@ -73,113 +102,140 @@ function bgmApplyVolume(){
 }
 
 function bgmUpdateUI(){
-  if(dom.bgmToggle) dom.bgmToggle.textContent = bgmState.on ? 'ON' : 'OFF';
+  if(dom.bgmToggle){
+    dom.bgmToggle.textContent = bgmState.on ? `ON ${bgmState.idx+1}/${BGM_FILES.length}` : 'OFF';
+  }
   if(dom.btnBgm) dom.btnBgm.textContent = bgmState.on ? '🎵' : '🔇';
   if(dom.bgmHint){
     dom.bgmHint.textContent = bgmState.on
-      ? 'BGM: ON (track1.mp3)'
-      : 'BGM: OFF (track1.mp3)';
+      ? `BGM: ON (${bgmTrackLabel()} / ${BGM_FILES.length})`
+      : `BGM: OFF (track1~track${BGM_FILES.length})`;
   }
 }
 
-function bgmEnsureSrc(){
+function bgmSetSrc(){
   if(!dom.bgm) return;
-  if(!dom.bgm.src || !dom.bgm.src.includes('/assets/bgm/')){
-    dom.bgm.src = BGM_SRC;
-  }
+  dom.bgm.src = bgmUrlFor();
+  try{ dom.bgm.load(); }catch(_){}
 }
 
-function bgmTryPlay(){
+function bgmStop(){
   if(!dom.bgm) return;
-  bgmEnsureSrc();
+  try{ dom.bgm.pause(); }catch(_){}
+  try{ dom.bgm.currentTime = 0; }catch(_){}
+}
+
+function bgmTryPlay(userGesture){
+  if(!dom.bgm) return;
   bgmApplyVolume();
+  bgmSetSrc();
   const p = dom.bgm.play();
-  if(p && typeof p.catch === 'function'){
+  if(p && p.catch){
     p.catch(()=>{
-      // autoplay blocked or file missing
-      bgmState.on = false;
-      bgmSavePrefs();
-      bgmUpdateUI();
+      // 모바일/인앱 autoplay 차단 가능
+      bgmState.triedAuto = true;
       if(dom.bgmHint){
-        dom.bgmHint.textContent = 'BGM 재생 실패: assets/bgm/track1.mp3 파일을 넣고 버튼을 다시 눌러주세요.';
+        dom.bgmHint.textContent = userGesture
+          ? `재생이 차단됐습니다. 화면을 한 번 더 터치/클릭해 주세요. (${bgmTrackLabel()})`
+          : `자동재생이 차단됐습니다. 화면을 터치하면 재생됩니다. (${bgmTrackLabel()})`;
       }
     });
   }
 }
 
-function bgmStop(){
-  if(dom.bgm) dom.bgm.pause();
+function bgmAdvance(reason){
+  if(!bgmState.on) return;
+
+  if(reason === 'error'){
+    bgmState.failCycle += 1;
+  }else{
+    bgmState.failCycle = 0;
+  }
+
+  bgmState.idx = (bgmState.idx + 1) % BGM_FILES.length;
+
+  // 10곡 모두 실패하면(폴더 위치가 다른 경우 포함) 폴백 경로로 전환
+  if(bgmState.failCycle >= BGM_FILES.length){
+    bgmState.failCycle = 0;
+    if(bgmState.base < BGM_BASES.length - 1){
+      bgmState.base += 1;
+      bgmState.idx = 0;
+    }else{
+      // 전부 실패: OFF
+      bgmState.on = false;
+      bgmSavePrefs();
+      bgmStop();
+      bgmUpdateUI();
+      return;
+    }
+  }
+
+  bgmSavePrefs();
+  bgmUpdateUI();
+  bgmTryPlay(false);
 }
 
-function bgmSet(on, userGesture=false){
+function bgmSet(on, userGesture){
   bgmState.on = !!on;
   bgmSavePrefs();
   bgmUpdateUI();
-  if(!dom.bgm) return;
-  if(bgmState.on){
-    if(userGesture) bgmTryPlay();
-    else{
-      // 다음 첫 터치/클릭에서 재생 시도
-      if(bgmState.triedAuto) return;
-      bgmState.triedAuto = true;
-      const once = ()=>{
-        bgmTryPlay();
-        window.removeEventListener('pointerdown', once, true);
-        window.removeEventListener('touchstart', once, true);
-      };
-      window.addEventListener('pointerdown', once, {capture:true, passive:true});
-      window.addEventListener('touchstart', once, {capture:true, passive:true});
-    }
-  } else {
+
+  if(!bgmState.on){
     bgmStop();
+    return;
   }
+  bgmTryPlay(!!userGesture);
 }
 
-bgmLoadPrefs();
-bgmApplyVolume();
-bgmUpdateUI();
+function bgmInit(){
+  bgmLoadPrefs();
+  bgmApplyVolume();
+  bgmUpdateUI();
 
-if(dom.bgmVol){
-  dom.bgmVol.addEventListener('input', ()=>{
-    const v = clamp(parseInt(dom.bgmVol.value,10)/100, 0, 1);
-    if(!Number.isNaN(v)) bgmState.vol = v;
-    bgmApplyVolume();
-    bgmSavePrefs();
-  }, {passive:true});
+  if(dom.bgm){
+    dom.bgm.addEventListener('ended', ()=>bgmAdvance('ended'));
+    dom.bgm.addEventListener('error', ()=>bgmAdvance('error'));
+  }
+
+  // 최초 자동 재생은 브라우저 정책상 막힐 수 있음 → ON 상태였으면 시도만 해봄
+  if(bgmState.on) bgmSet(true, false);
+
+  // 볼륨 슬라이더
+  if(dom.bgmVol){
+    const onVol = ()=>{
+      bgmState.vol = clamp(parseInt(dom.bgmVol.value,10)/100, 0, 1);
+      bgmApplyVolume();
+      bgmSavePrefs();
+    };
+    dom.bgmVol.addEventListener('input', onVol);
+    dom.bgmVol.addEventListener('change', onVol);
+  }
+
+  // 패널 토글(OFF/ON)
+  if(dom.bgmToggle){
+    dom.bgmToggle.addEventListener('click', (e)=>{ e.preventDefault(); bgmSet(!bgmState.on, true); }, {passive:false});
+    dom.bgmToggle.addEventListener('touchstart', (e)=>{ e.preventDefault(); bgmSet(!bgmState.on, true); }, {passive:false});
+  }
+
+  // 상단 아이콘 토글
+  if(dom.btnBgm){
+    dom.btnBgm.addEventListener('click', (e)=>{ e.preventDefault(); bgmSet(!bgmState.on, true); }, {passive:false});
+    dom.btnBgm.addEventListener('touchstart', (e)=>{ e.preventDefault(); bgmSet(!bgmState.on, true); }, {passive:false});
+  }
+
+  // 페이지가 숨겨지면 일단 정지(모바일 배터리/인앱 대응)
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.hidden) bgmStop();
+    else if(!document.hidden && bgmState.on){
+      // 복귀 시 재생은 사용자 제스처가 필요할 수 있음
+      bgmSet(true, false);
+    }
+  });
 }
 
-if(dom.bgmToggle){
-  dom.bgmToggle.addEventListener('click', (e)=>{
-    e.preventDefault();
-    bgmSet(!bgmState.on, true);
-  }, {passive:false});
-  dom.bgmToggle.addEventListener('touchstart', (e)=>{
-    e.preventDefault();
-    bgmSet(!bgmState.on, true);
-  }, {passive:false});
-}
 
-if(dom.btnBgm){
-  dom.btnBgm.addEventListener('click', (e)=>{
-    e.preventDefault();
-    bgmSet(!bgmState.on, true);
-  }, {passive:false});
-  dom.btnBgm.addEventListener('touchstart', (e)=>{
-    e.preventDefault();
-    bgmSet(!bgmState.on, true);
-  }, {passive:false});
-}
-
-// 페이지가 숨겨지면 일단 정지(모바일 배터리/인앱 대응)
-document.addEventListener('visibilitychange', ()=>{
-  if(document.hidden) bgmStop();
-  else if(bgmState.on) bgmSet(true, false);
-}, {passive:true});
-
-
-function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
-function dist2(ax,ay,bx,by){ const dx=ax-bx, dy=ay-by; return dx*dx+dy*dy; }
-function now(){ return performance.now()/1000; }
+// init
+bgmInit();
 
 // ---------- item templates / equipment ----------
 const RARITY = {

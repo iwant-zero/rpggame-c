@@ -103,14 +103,16 @@ canvas{display:block; width:100%; height:100%}
   top:calc(234px + var(--safeTop));
   right:calc(10px + var(--safeR));
   width:150px;
-  padding:10px;
+  padding:6px 8px;
 }
-.bgmRow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
-.bgmT{font-weight:800;font-size:12px;opacity:.92}
+.bgmRow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:3px;font-size:12px;opacity:.92}
+#bgmWrap .bgmRow:last-child{margin-bottom:0}
+
 .bgmV{font-size:12px;opacity:.85;min-width:40px;text-align:right}
 .bgmHint{margin-top:2px;opacity:.75}
 #bgmVol{flex:1}
 .btnMini{padding:6px 10px;border-radius:12px;font-size:12px}
+
 
 #bottombar{
   position:absolute;

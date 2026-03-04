@@ -1,9 +1,12 @@
 (()=>{"use strict";
 
-const VERSION = 'eg-new4-d4-bgm10';
+const VERSION = 'eg-new4-d4-bgm10fix2';
 const BASE_W = 960, BASE_H = 540;
 
 const $ = (id)=>document.getElementById(id);
+
+function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
+
 
 const dom = {
   stage16: $('stage16'),
@@ -41,21 +44,32 @@ const dom = {
 dom.verText.textContent = VERSION;
 
 // ---------- BGM (assets/bgm/track1.mp3 ~ track10.mp3, 순차 순환) ----------
-const BGM_TRACKS = Array.from({length: 10}, (_,i)=>`./assets/bgm/track${i+1}.mp3`);
+const BGM_FILES = Array.from({length: 10}, (_,i)=>`track${i+1}.mp3`);
+// Pages 루트(/)와 /rpggame-c/ 둘 다에서 동작하게 폴백 경로를 둔다.
+const BGM_BASES = ['./assets/bgm/', '../assets/bgm/'];
 
 const bgmState = {
   on: false,
   vol: 0.40,
   triedAuto: false,
   idx: 0,          // 0..9
-  failCycle: 0,    // 연속 실패 카운터(모두 실패 시 OFF)
+  failCycle: 0,    // 연속 실패(파일 없음 등) 카운터
+  base: 0,         // 0..BGM_BASES.length-1
 };
+
+function bgmTrackLabel(){ return `track${bgmState.idx+1}`; }
+function bgmUrlFor(){
+  const base = BGM_BASES[Math.max(0, Math.min(BGM_BASES.length-1, bgmState.base))];
+  return base + BGM_FILES[bgmState.idx];
+}
 
 function bgmLoadPrefs(){
   try{
     const on = localStorage.getItem('eg_bgm_on');
     const vol = localStorage.getItem('eg_bgm_vol');
     const idx = localStorage.getItem('eg_bgm_idx');
+    const base = localStorage.getItem('eg_bgm_base');
+
     if(on === '1') bgmState.on = true;
 
     if(vol !== null){
@@ -64,7 +78,11 @@ function bgmLoadPrefs(){
     }
     if(idx !== null){
       const n = parseInt(idx, 10);
-      if(Number.isFinite(n)) bgmState.idx = clamp(n, 0, BGM_TRACKS.length-1);
+      if(Number.isFinite(n)) bgmState.idx = clamp(n, 0, BGM_FILES.length-1);
+    }
+    if(base !== null){
+      const b = parseInt(base, 10);
+      if(Number.isFinite(b)) bgmState.base = clamp(b, 0, BGM_BASES.length-1);
     }
   }catch(_){}
 }
@@ -72,7 +90,8 @@ function bgmSavePrefs(){
   try{
     localStorage.setItem('eg_bgm_on', bgmState.on ? '1' : '0');
     localStorage.setItem('eg_bgm_vol', String(Math.round(bgmState.vol*100)));
-    localStorage.setItem('eg_bgm_idx', String(bgmState.idx|0));
+    localStorage.setItem('eg_bgm_idx', String(bgmState.idx));
+    localStorage.setItem('eg_bgm_base', String(bgmState.base));
   }catch(_){}
 }
 
@@ -82,49 +101,39 @@ function bgmApplyVolume(){
   if(dom.bgmVolText) dom.bgmVolText.textContent = `${Math.round(bgmState.vol*100)}%`;
 }
 
-function bgmTrackLabel(){
-  return `track${(bgmState.idx|0)+1}.mp3`;
-}
-
 function bgmUpdateUI(){
-  if(dom.bgmToggle) dom.bgmToggle.textContent = bgmState.on ? `ON ${ (bgmState.idx|0)+1 }/${BGM_TRACKS.length}` : 'OFF';
+  if(dom.bgmToggle){
+    dom.bgmToggle.textContent = bgmState.on ? `ON ${bgmState.idx+1}/${BGM_FILES.length}` : 'OFF';
+  }
   if(dom.btnBgm) dom.btnBgm.textContent = bgmState.on ? '🎵' : '🔇';
   if(dom.bgmHint){
     dom.bgmHint.textContent = bgmState.on
-      ? `BGM: ON (${bgmTrackLabel()} / ${BGM_TRACKS.length})`
-      : `BGM: OFF (track1~track${BGM_TRACKS.length})`;
+      ? `BGM: ON (${bgmTrackLabel()} / ${BGM_FILES.length})`
+      : `BGM: OFF (track1~track${BGM_FILES.length})`;
   }
 }
 
-function bgmSetSrc(idx){
+function bgmSetSrc(){
   if(!dom.bgm) return;
-  const n = ((idx % BGM_TRACKS.length) + BGM_TRACKS.length) % BGM_TRACKS.length;
-  bgmState.idx = n;
-  dom.bgm.loop = false; // 순차재생이므로 loop 금지
-  dom.bgm.src = BGM_TRACKS[n];
-  bgmSavePrefs();
-  bgmUpdateUI();
+  dom.bgm.src = bgmUrlFor();
+  try{ dom.bgm.load(); }catch(_){}
 }
 
-function bgmEnsure(){
+function bgmStop(){
   if(!dom.bgm) return;
-  dom.bgm.loop = false;
-  // src가 없거나 다른 경로면 현재 idx로 세팅
-  const cur = dom.bgm.getAttribute('src') || dom.bgm.src || '';
-  if(!cur || !String(cur).includes('/assets/bgm/')){
-    bgmSetSrc(bgmState.idx);
-  }
+  try{ dom.bgm.pause(); }catch(_){}
+  try{ dom.bgm.currentTime = 0; }catch(_){}
 }
 
-function bgmPlay(userGesture=false){
+function bgmTryPlay(userGesture){
   if(!dom.bgm) return;
-  bgmEnsure();
   bgmApplyVolume();
-
+  bgmSetSrc();
   const p = dom.bgm.play();
-  if(p && typeof p.catch === 'function'){
+  if(p && p.catch){
     p.catch(()=>{
-      // 모바일/인앱에서 autoplay 차단 가능 (파일 없음은 error 이벤트로 처리)
+      // 모바일/인앱 autoplay 차단 가능
+      bgmState.triedAuto = true;
       if(dom.bgmHint){
         dom.bgmHint.textContent = userGesture
           ? `재생이 차단됐습니다. 화면을 한 번 더 터치/클릭해 주세요. (${bgmTrackLabel()})`
@@ -134,124 +143,99 @@ function bgmPlay(userGesture=false){
   }
 }
 
-function bgmStop(){
-  if(dom.bgm) dom.bgm.pause();
+function bgmAdvance(reason){
+  if(!bgmState.on) return;
+
+  if(reason === 'error'){
+    bgmState.failCycle += 1;
+  }else{
+    bgmState.failCycle = 0;
+  }
+
+  bgmState.idx = (bgmState.idx + 1) % BGM_FILES.length;
+
+  // 10곡 모두 실패하면(폴더 위치가 다른 경우 포함) 폴백 경로로 전환
+  if(bgmState.failCycle >= BGM_FILES.length){
+    bgmState.failCycle = 0;
+    if(bgmState.base < BGM_BASES.length - 1){
+      bgmState.base += 1;
+      bgmState.idx = 0;
+    }else{
+      // 전부 실패: OFF
+      bgmState.on = false;
+      bgmSavePrefs();
+      bgmStop();
+      bgmUpdateUI();
+      return;
+    }
+  }
+
+  bgmSavePrefs();
+  bgmUpdateUI();
+  bgmTryPlay(false);
 }
 
-function bgmNext(){
-  bgmSetSrc((bgmState.idx|0) + 1);
-  bgmPlay(false);
-}
-
-function bgmSet(on, userGesture=false){
+function bgmSet(on, userGesture){
   bgmState.on = !!on;
   bgmSavePrefs();
   bgmUpdateUI();
 
-  if(!dom.bgm) return;
-  if(bgmState.on){
-    bgmState.failCycle = 0;
-    bgmEnsure();
-
-    if(userGesture){
-      bgmPlay(true);
-    }else{
-      // 다음 첫 터치/클릭에서 재생 시도
-      if(bgmState.triedAuto) return;
-      bgmState.triedAuto = true;
-
-      const once = ()=>{
-        if(bgmState.on) bgmPlay(true);
-        window.removeEventListener('pointerdown', once, true);
-        window.removeEventListener('touchstart', once, true);
-      };
-      window.addEventListener('pointerdown', once, {capture:true, passive:true});
-      window.addEventListener('touchstart', once, {capture:true, passive:true});
-    }
-  }else{
+  if(!bgmState.on){
     bgmStop();
+    return;
   }
+  bgmTryPlay(!!userGesture);
 }
 
-bgmLoadPrefs();
-bgmApplyVolume();
-bgmUpdateUI();
-bgmEnsure();
+function bgmInit(){
+  bgmLoadPrefs();
+  bgmApplyVolume();
+  bgmUpdateUI();
 
-// 저장된 설정이 ON이면, 첫 터치/클릭에서 자동 재생 시도
-if(bgmState.on) bgmSet(true, false);
+  if(dom.bgm){
+    dom.bgm.addEventListener('ended', ()=>bgmAdvance('ended'));
+    dom.bgm.addEventListener('error', ()=>bgmAdvance('error'));
+  }
 
-if(dom.bgm){
-  // 트랙 끝나면 다음 트랙으로
-  dom.bgm.addEventListener('ended', ()=>{
-    if(!bgmState.on) return;
-    bgmState.failCycle = 0;
-    bgmNext();
-  });
+  // 최초 자동 재생은 브라우저 정책상 막힐 수 있음 → ON 상태였으면 시도만 해봄
+  if(bgmState.on) bgmSet(true, false);
 
-  // 실제 재생이 시작되면 실패 카운터 리셋(일부 트랙만 있어도 계속 순환 가능)
-  dom.bgm.addEventListener('playing', ()=>{ bgmState.failCycle = 0; });
-  dom.bgm.addEventListener('canplay', ()=>{ bgmState.failCycle = 0; });
-
-  // 파일이 없거나 로드 실패하면 다음 트랙으로 스킵 (전부 실패하면 OFF)
-  dom.bgm.addEventListener('error', ()=>{
-    if(!bgmState.on) return;
-
-    bgmState.failCycle++;
-    if(bgmState.failCycle >= BGM_TRACKS.length){
-      bgmState.on = false;
+  // 볼륨 슬라이더
+  if(dom.bgmVol){
+    const onVol = ()=>{
+      bgmState.vol = clamp(parseInt(dom.bgmVol.value,10)/100, 0, 1);
+      bgmApplyVolume();
       bgmSavePrefs();
-      bgmUpdateUI();
-      bgmStop();
-      if(dom.bgmHint){
-        dom.bgmHint.textContent = 'BGM 파일을 찾지 못했습니다. assets/bgm/track1~track10.mp3 를 확인해 주세요.';
-      }
-      return;
+    };
+    dom.bgmVol.addEventListener('input', onVol);
+    dom.bgmVol.addEventListener('change', onVol);
+  }
+
+  // 패널 토글(OFF/ON)
+  if(dom.bgmToggle){
+    dom.bgmToggle.addEventListener('click', (e)=>{ e.preventDefault(); bgmSet(!bgmState.on, true); }, {passive:false});
+    dom.bgmToggle.addEventListener('touchstart', (e)=>{ e.preventDefault(); bgmSet(!bgmState.on, true); }, {passive:false});
+  }
+
+  // 상단 아이콘 토글
+  if(dom.btnBgm){
+    dom.btnBgm.addEventListener('click', (e)=>{ e.preventDefault(); bgmSet(!bgmState.on, true); }, {passive:false});
+    dom.btnBgm.addEventListener('touchstart', (e)=>{ e.preventDefault(); bgmSet(!bgmState.on, true); }, {passive:false});
+  }
+
+  // 페이지가 숨겨지면 일단 정지(모바일 배터리/인앱 대응)
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.hidden) bgmStop();
+    else if(!document.hidden && bgmState.on){
+      // 복귀 시 재생은 사용자 제스처가 필요할 수 있음
+      bgmSet(true, false);
     }
-    bgmSetSrc((bgmState.idx|0) + 1);
-    bgmPlay(false);
   });
 }
 
-if(dom.bgmVol){
-  dom.bgmVol.addEventListener('input', ()=>{
-    const v = clamp(parseInt(dom.bgmVol.value,10)/100, 0, 1);
-    if(!Number.isNaN(v)) bgmState.vol = v;
-    bgmApplyVolume();
-    bgmSavePrefs();
-  }, {passive:true});
-}
 
-if(dom.bgmToggle){
-  dom.bgmToggle.addEventListener('click', (e)=>{
-    e.preventDefault();
-    bgmSet(!bgmState.on, true);
-  }, {passive:false});
-  dom.bgmToggle.addEventListener('touchstart', (e)=>{
-    e.preventDefault();
-    bgmSet(!bgmState.on, true);
-  }, {passive:false});
-}
-
-if(dom.btnBgm){
-  dom.btnBgm.addEventListener('click', (e)=>{
-    e.preventDefault();
-    bgmSet(!bgmState.on, true);
-  }, {passive:false});
-  dom.btnBgm.addEventListener('touchstart', (e)=>{
-    e.preventDefault();
-    bgmSet(!bgmState.on, true);
-  }, {passive:false});
-}
-
-// 페이지가 숨겨지면 일단 정지(모바일 배터리/인앱 대응)
-document.addEventListener('visibilitychange', ()=>{
-  if(document.hidden) bgmStop();
-  else if(!document.hidden && bgmState.on){
-    // 복귀 시 재생은 사용자 제스처가 필요할 수 있음
-    bgmSet(true, false);
-  }
-});
+// init
+bgmInit();
 
 // ---------- item templates / equipment ----------
 const RARITY = {
