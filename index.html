@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <title>Eternal Gate (new v4)</title>
-  <link rel="stylesheet" href="./style.css?v=eg-new4-d4-bgm10fix2"/>
+  <link rel="stylesheet" href="./style.css?v=eg-new4-d4-bgm"/>
 </head>
 <body>
   <div id="app">
@@ -71,9 +71,10 @@
               <input id="bgmVol" type="range" min="0" max="100" value="40" />
               <div class="bgmV" id="bgmVolText">40%</div>
             </div>
-</section>
+            <div class="bgmHint small" id="bgmHint">BGM: OFF (track1.mp3)</div>
+          </section>
 
-          <audio id="bgm" preload="auto"></audio>
+          <audio id="bgm" preload="auto" loop></audio>
 
           <footer id="bottombar">
             <div id="joyWrap" class="glass">
@@ -138,6 +139,6 @@
       if(dbg){ dbg.classList.add('on'); dbg.textContent = 'ERROR: ' + (e?.message || String(e)); }
     });
   </script>
-  <script src="./js/main.js?v=eg-new4-d4-bgm10fix2"></script>
+  <script src="./js/main.js?v=eg-new4-d4-bgm"></script>
 </body>
 </html>
