@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <title>Eternal Gate (new v4)</title>
-  <link rel="stylesheet" href="./style.css?v=eg-new4-d4-bgm-death1"/>
+  <link rel="stylesheet" href="./style.css?v=eg-new4-d4-bgm"/>
 </head>
 <body>
   <div id="app">
@@ -68,18 +68,10 @@
               <button class="btn btnMini" id="bgmToggle">OFF</button>
             </div>
             <div class="bgmRow">
-              <select id="bgmSelect" class="bgmSelect" title="BGM 트랙 선택"></select>
-            </div>
-            <div class="bgmRow">
-              <button class="btn btnMini" id="bgmPrev" title="이전 트랙">◀</button>
-              <button class="btn btnMini" id="bgmNext" title="다음 트랙">▶</button>
-            </div>
-            <div class="bgmRow">
               <input id="bgmVol" type="range" min="0" max="100" value="40" />
               <div class="bgmV" id="bgmVolText">40%</div>
             </div>
-            <div class="bgmHint small" id="bgmHint">BGM: OFF</div>
-          </section>
+</section>
 
           <audio id="bgm" preload="auto"></audio>
 
@@ -146,6 +138,6 @@
       if(dbg){ dbg.classList.add('on'); dbg.textContent = 'ERROR: ' + (e?.message || String(e)); }
     });
   </script>
-  <script src="./js/main.js?v=eg-new4-d4-bgm-death1"></script>
+  <script src="./js/main.js?v=eg-new4-d4-bgm10"></script>
 </body>
 </html>
