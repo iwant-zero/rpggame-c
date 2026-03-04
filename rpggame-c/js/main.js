@@ -1212,8 +1212,26 @@ function enhanceCost(){
   return Math.floor(60 + state.weaponPlus*55 + Math.max(0, state.weaponPlus-6)*25);
 }
 function enhanceRate(){
-  const p = 0.90 - state.weaponPlus*0.07;
-  return clamp(p, 0.20, 0.90);
+  // 단계별 고정 확률 테이블
+  // +0~+1: 쉬움 / +2~+3: 어려움 / +4~+6: 매우 어려움 / +7+: 지옥
+  const table = [
+    1.00, // +0  (쉬움)
+    0.90, // +1  (쉬움)
+    0.65, // +2  (어려움)
+    0.55, // +3  (어려움)
+    0.40, // +4  (매우 어려움)
+    0.30, // +5  (매우 어려움)
+    0.20, // +6  (매우 어려움)
+    0.12, // +7  (지옥)
+    0.10, // +8  (지옥)
+    0.08, // +9  (지옥)
+    0.06, // +10 (지옥)
+    0.05, // +11 (지옥)
+    0.04, // +12 (지옥)
+    0.03  // +13+ (지옥 하한)
+  ];
+  const plus = Math.max(0, (state.weaponPlus|0));
+  return table[Math.min(plus, table.length-1)];
 }
 function refreshShop(){
   const cost = enhanceCost();
@@ -1221,7 +1239,7 @@ function refreshShop(){
   const prot = state.inv.find(x=>x && x.tplId==='protect_scroll');
   const protN = prot ? (prot.n||1) : 0;
   dom.shopHint.textContent = `무기강화 비용: ${cost}G / 현재 +${state.weaponPlus} / 성공확률 ${(rate*100).toFixed(0)}% / 보호권 ${protN}개`;
-  dom.enhanceHint.textContent = `성공: 블레이드+1 / ATK·RANGE·CRIT 소폭 증가 · 실패: 단계하락(보호권 1개로 방지 가능)`;
+  dom.enhanceHint.textContent = `성공: 블레이드+1 / ATK·RANGE·CRIT 소폭 증가 · 실패: +4부터 단계하락(보호권 1개로 방지 가능)`;
 }
 
 function upgradeWeapon(){
@@ -1244,8 +1262,7 @@ function upgradeWeapon(){
     let downgraded = false;
     let protectedOk = false;
 
-    // 실패 시: 현재 단계가 1 이상이면 단계 하락(보호권 1개로 1회 방지)
-    if(state.weaponPlus > 0){
+    if(state.weaponPlus >= 4){
       protectedOk = consumeProtect();
       if(!protectedOk){
         state.weaponPlus = Math.max(0, state.weaponPlus - 1);
