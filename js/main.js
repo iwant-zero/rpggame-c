@@ -1,6 +1,6 @@
 (()=>{"use strict";
 
-const VERSION = 'eg-new4-d4-bossbox2';
+const VERSION = 'eg-new4-d4-bossbox3';
 const BASE_W = 960, BASE_H = 540;
 
 const $ = (id)=>document.getElementById(id);
