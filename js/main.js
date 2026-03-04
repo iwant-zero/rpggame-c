@@ -1,6 +1,6 @@
 (()=>{"use strict";
 
-const VERSION = 'eg-new4-d4-bgm-hitfix1';
+const VERSION = 'eg-new4-d4-bgm-death1';
 const BASE_W = 960, BASE_H = 540;
 
 const $ = (id)=>document.getElementById(id);
@@ -482,10 +482,94 @@ const runtime = {
   joy: {active:false, dx:0, dy:0, baseX:0, baseY:0},
   rollingUntil: 0,
   hurtUntil: 0,
+  dead: false,
+  deadAt: 0,
   portals: [],
   monsters: [],
   drops: [],
 };
+
+// ---------- death / respawn ----------
+const deathUI = { wrap:null, msg:null };
+function ensureDeathUI(){
+  if(deathUI.wrap) return;
+  const wrap = document.createElement('div');
+  wrap.id = 'deathOverlay';
+  Object.assign(wrap.style, {
+    position:'absolute', left:'0', top:'0', right:'0', bottom:'0',
+    display:'none', alignItems:'center', justifyContent:'center',
+    background:'rgba(0,0,0,0.58)', zIndex:'9999',
+    pointerEvents:'auto'
+  });
+
+  const card = document.createElement('div');
+  card.className = 'glass';
+  Object.assign(card.style, {
+    minWidth:'260px', maxWidth:'360px',
+    padding:'16px', borderRadius:'16px',
+    border:'1px solid rgba(255,255,255,0.12)',
+    textAlign:'center',
+    boxShadow:'0 12px 36px rgba(0,0,0,0.45)'
+  });
+
+  const title = document.createElement('div');
+  title.textContent = '사망';
+  Object.assign(title.style, {fontSize:'22px', fontWeight:'800', letterSpacing:'-0.3px'});
+
+  const msg = document.createElement('div');
+  msg.textContent = '마을에서 부활할 수 있습니다.';
+  Object.assign(msg.style, {marginTop:'6px', opacity:'0.92', fontSize:'13px', lineHeight:'1.35'});
+
+  const row = document.createElement('div');
+  row.className = 'row';
+  Object.assign(row.style, {justifyContent:'center', gap:'10px', marginTop:'14px'});
+
+  const btn = document.createElement('button');
+  btn.className = 'btn';
+  btn.textContent = '마을에서 부활';
+  btn.addEventListener('click', (e)=>{ e.preventDefault(); respawnAtTown(); }, {passive:false});
+
+  row.appendChild(btn);
+  card.appendChild(title);
+  card.appendChild(msg);
+  card.appendChild(row);
+  wrap.appendChild(card);
+  dom.stage16.appendChild(wrap);
+
+  deathUI.wrap = wrap;
+  deathUI.msg = msg;
+}
+
+function setDead(on){
+  ensureDeathUI();
+  runtime.dead = !!on;
+  if(runtime.dead){
+    runtime.deadAt = runtime.t;
+    // lock inputs
+    runtime.keys.clear();
+    runtime.joy.active = false;
+    runtime.joy.dx = 0; runtime.joy.dy = 0;
+    closePanels();
+    deathUI.wrap.style.display = 'flex';
+  }else{
+    if(deathUI.wrap) deathUI.wrap.style.display = 'none';
+  }
+}
+
+function die(){
+  if(runtime.dead) return;
+  setDead(true);
+}
+
+function respawnAtTown(){
+  // revive with partial resources
+  state.hp = Math.max(1, Math.floor(state.hpMax * 0.75));
+  state.mp = Math.floor(state.mpMax * 0.50);
+  moveToMap('town');
+  runtime.hurtUntil = runtime.t + 1.0; // brief grace period
+  setDead(false);
+  uiUpdate();
+}
 
 function computeStats(){
   let atk=0, def=0, hp=0, mp=0, range=0, crit=0.0;
@@ -909,7 +993,6 @@ function respawnMonsters(){
 
     runtime.monsters.push({
       spr,
-      r: rr,
       hp: Math.floor(cfg.hp * diff.hpMul),
       hpMax: Math.floor(cfg.hp * diff.hpMul),
       atk: Math.floor(cfg.atk * diff.atkMul),
@@ -1357,6 +1440,28 @@ app.ticker.add(()=>{
   last = t;
   runtime.t = now();
 
+  // if dead, freeze simulation but keep UI/minimap alive
+  if(runtime.dead){
+    cam();
+    uiUpdate();
+    drawMinimap();
+    if(dom.debug.classList.contains('on')){
+      dom.debug.textContent =
+        `VER ${VERSION}\nMAP ${state.map}\n(DEAD)\nHP ${state.hp}/${state.hpMax}`;
+    }
+    return;
+  }
+
+  // if HP already 0 (e.g. loaded state), enter death state
+  if(state.hp<=0){
+    state.hp = 0;
+    die();
+    cam();
+    uiUpdate();
+    drawMinimap();
+    return;
+  }
+
   const iv = inputVector();
   const spd = (runtime.rollingUntil > runtime.t) ? 380 : 190;
   state.pos.x += iv.dx * spd * dt;
@@ -1414,8 +1519,6 @@ app.ticker.add(()=>{
   if(state.map!=='town'){
     for(const mo of runtime.monsters){
       if(mo.hp<=0) continue;
-
-      // chase
       const dx = state.pos.x - mo.spr.x;
       const dy = state.pos.y - mo.spr.y;
       const len = Math.sqrt(dx*dx+dy*dy) || 1;
@@ -1443,6 +1546,12 @@ app.ticker.add(()=>{
 
           burstFx(state.pos.x, state.pos.y, 0xff3355);
           floatText(`-${dmg}`, state.pos.x, state.pos.y-46);
+
+          if(state.hp<=0){
+            state.hp = 0;
+            die();
+            break;
+          }
         }
       }
     }
