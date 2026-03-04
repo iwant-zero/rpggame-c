@@ -1,6 +1,6 @@
 (()=>{"use strict";
 
-const VERSION = 'eg-new4-d4-dmgdeath2';
+const VERSION = 'eg-new4-d4-dmgdeath3-townregen1';
 const BASE_W = 960, BASE_H = 540;
 
 const $ = (id)=>document.getElementById(id);
@@ -1430,6 +1430,16 @@ app.ticker.add(()=>{
 
   // monsters contact damage -> player hp
   tickMonsterContactDamage();
+
+  // town auto regen (slow)
+  /*__TOWN_REGEN__*/
+  if(state.map==='town'){
+    const hpRate = state.hpMax * 0.015; // 1.5% max HP per sec
+    const mpRate = state.mpMax * 0.020; // 2.0% max MP per sec
+    if(state.hp < state.hpMax) state.hp = Math.min(state.hpMax, state.hp + hpRate * dt);
+    if(state.mp < state.mpMax) state.mp = Math.min(state.mpMax, state.mp + mpRate * dt);
+  }
+
 
   cam();
   uiUpdate();
