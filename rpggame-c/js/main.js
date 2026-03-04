@@ -1,6 +1,6 @@
 (()=>{"use strict";
 
-const VERSION = 'eg-new4-d4-dmgdeath3-townregen1';
+const VERSION = 'eg-new4-d4-bossbox2';
 const BASE_W = 960, BASE_H = 540;
 
 const $ = (id)=>document.getElementById(id);
@@ -48,7 +48,8 @@ dom.verText.textContent = VERSION;
 // ---------- BGM (assets/bgm/track1.mp3 ~ track10.mp3, 순차 순환) ----------
 const BGM_FILES = Array.from({length: 10}, (_,i)=>`track${i+1}.mp3`);
 // Pages 루트(/)와 /rpggame-c/ 둘 다에서 동작하게 폴백 경로를 둔다.
-const BGM_BASES = ['./assets/bgm/', '../assets/bgm/'];
+const IS_SUBDIR = (typeof location!=='undefined') && String(location.pathname||'').includes('/rpggame-c/');
+const BGM_BASES = IS_SUBDIR ? ['../assets/bgm/', './assets/bgm/'] : ['./assets/bgm/', '../assets/bgm/'];
 
 const bgmState = {
   on: false,
@@ -251,6 +252,7 @@ const TPL = {
   hp_potion: { id:'hp_potion', name:'HP 포션', type:'consumable', rarity:1, price:30, stack:true, healHP:60, sub:'HP +60' },
   mp_potion: { id:'mp_potion', name:'MP 포션', type:'consumable', rarity:1, price:30, stack:true, healMP:40, sub:'MP +40' },
   protect_scroll:{ id:'protect_scroll', name:'강화 보호권', type:'consumable', rarity:2, price:80, stack:true, protect:true, sub:'강화 실패 시 단계하락 1회 방지' },
+  hero_box:    { id:'hero_box', name:'영웅 확률 +@ 상자', type:'consumable', rarity:4, price:0, stack:true, box:true, sub:'사용 시 장비 1개 획득 (영웅 확률 상승)' },
   junk: { id:'junk', name:'잡템', type:'junk', rarity:1, price:8, stack:true, sub:'상점 판매용' },
 
   wood_blade: { id:'wood_blade', name:'목검', type:'weapon', slot:'weapon', rarity:1, price:60, atk:4, range:0, crit:0.00, sub:'ATK +4' },
@@ -372,6 +374,56 @@ function rollLoot(tier){
   return t.gear[Math.floor(Math.random()*t.gear.length)];
 }
 
+function rollBossBoxLoot(tier){
+  const t = LOOT[tier] || LOOT[1];
+  const hasEpic = t.epic && t.epic.length;
+  const hasRare = t.rare && t.rare.length;
+  const hasGear = t.gear && t.gear.length;
+  const r = Math.random();
+  const epicP = hasEpic ? 0.35 : 0.0;
+  const rareP = hasRare ? (hasEpic ? 0.50 : 0.65) : 0.0; // 누적 확률용
+  if(hasEpic && r < epicP) return t.epic[Math.floor(Math.random()*t.epic.length)];
+  if(hasRare && r < epicP + rareP) return t.rare[Math.floor(Math.random()*t.rare.length)];
+  if(hasGear) return t.gear[Math.floor(Math.random()*t.gear.length)];
+  return (LOOT[1].gear[0] || 'wood_blade');
+}
+
+function grantItemToInv(item){
+  const tpl = item && TPL[item.tplId];
+  if(!tpl) return false;
+
+  if(tpl.stack){
+    const ex = state.inv.find(it=>it && it.tplId===tpl.id);
+    if(ex) ex.n = (ex.n||1) + (item.n||1);
+    else{
+      if(state.inv.length >= state.invMax) return false;
+      state.inv.push(item);
+    }
+    return true;
+  }
+
+  if(state.inv.length >= state.invMax) return false;
+  state.inv.push(item);
+  return true;
+}
+
+function openHeroBox(it){
+  const tier = (it && (it.boxTier||it.tier||it.bossTier)) || 2;
+  const tplId = rollBossBoxLoot(clamp(tier,1,4));
+  const loot = makeItem(tplId);
+  if(!loot) return false;
+
+  const ok = grantItemToInv(loot);
+  if(ok){
+    const nm = (TPL[loot.tplId] && TPL[loot.tplId].name) ? TPL[loot.tplId].name : loot.tplId;
+    floatText(`상자 개봉: ${nm}`, state.pos.x, state.pos.y-28);
+    burstFx(state.pos.x, state.pos.y, 0xffd06b);
+  }else{
+    floatText('가방이 가득 찼습니다.', state.pos.x, state.pos.y-28);
+  }
+  return ok;
+}
+
 // ---------- state ----------
 const state = {
   map:'town',
@@ -394,12 +446,18 @@ const runtime = {
   keys: new Set(),
   joy: {active:false, dx:0, dy:0, baseX:0, baseY:0},
   rollingUntil: 0,
-  invulUntil: 0,
-  deadUntil: 0,
-  respawnAt: 0,
   portals: [],
   monsters: [],
   drops: [],
+
+  bossSpawned: false,
+  bossDefeated: false,
+
+  hitCdUntil: 0,
+  invulnUntil: 0,
+
+  dead: false,
+  deadUntil: 0,
 };
 
 function computeStats(){
@@ -624,6 +682,15 @@ function useConsumable(uid){
   const tpl = TPL[it.tplId];
   if(!tpl || tpl.type!=='consumable') return;
 
+  // hero box
+  if(tpl.box || tpl.id==='hero_box'){
+    const ok = openHeroBox(it);
+    if(!ok) return; // 가방이 가득하면 소비하지 않음
+    if((it.n||1) > 1) it.n -= 1;
+    else invRemove(uid);
+    return;
+  }
+
   if(tpl.healHP) state.hp = Math.min(state.hpMax, state.hp + tpl.healHP);
   if(tpl.healMP) state.mp = Math.min(state.mpMax, state.mp + tpl.healMP);
 
@@ -807,6 +874,9 @@ function burstFx(x,y,color){
 function respawnMonsters(){
   for(const mo of runtime.monsters){ layerEnt.removeChild(mo.spr); mo.spr.destroy(); }
   runtime.monsters = [];
+  runtime.bossSpawned = false;
+  runtime.bossDefeated = false;
+  runtime.hitCdUntil = 0;
   if(state.map === 'town') return;
 
   const m = MAPS[state.map];
@@ -823,7 +893,6 @@ function respawnMonsters(){
     layerEnt.addChild(spr);
 
     runtime.monsters.push({
-      r: rr,
       spr,
       hp: Math.floor(cfg.hp * diff.hpMul),
       hpMax: Math.floor(cfg.hp * diff.hpMul),
@@ -836,81 +905,54 @@ function respawnMonsters(){
   }
 }
 
-/*__PLAYER_DAMAGE_DEATH__*/
-function isPlayerDead(t){ return !!runtime.deadUntil && t < runtime.deadUntil; }
-
-function diePlayer(){
-  const t = now();
-  if(isPlayerDead(t)) return;
-  state.hp = 0;
-  closePanels();
-  burstFx(state.pos.x, state.pos.y, 0xff5b5b);
-  floatText('사망', state.pos.x, state.pos.y-24);
-  runtime.deadUntil = t + 0.85;
-  runtime.respawnAt = t + 0.85;
-  runtime.invulUntil = t + 0.85;
-}
-
-function respawnAtTown(){
-  const t = now();
-  runtime.deadUntil = 0;
-  runtime.respawnAt = 0;
-  moveToMap('town');
-  uiUpdate();
-  state.hp = Math.max(1, Math.floor(state.hpMax * 0.75));
-  state.mp = Math.max(0, Math.floor(state.mpMax * 0.50));
-  runtime.invulUntil = t + 1.20;
-  burstFx(state.pos.x, state.pos.y, 0x5bb8ff);
-  floatText('마을에서 부활', state.pos.x, state.pos.y-26);
-  uiUpdate();
-}
-
-function applyPlayerDamage(dmg, srcX, srcY){
-  const t = now();
-  if(isPlayerDead(t)) return;
-  if(t < (runtime.invulUntil||0)) return;
-
-  const st = computeStats();
-  const finalDmg = Math.max(1, Math.floor(dmg - st.def*0.35));
-  state.hp -= finalDmg;
-
-  // knockback a bit
-  const dx = state.pos.x - srcX;
-  const dy = state.pos.y - srcY;
-  const len = Math.sqrt(dx*dx+dy*dy) || 1;
-  state.pos.x += (dx/len) * 18;
-  state.pos.y += (dy/len) * 18;
-
-  runtime.invulUntil = t + 0.45;
-  burstFx(state.pos.x, state.pos.y, 0xff5b5b);
-  floatText(`-${finalDmg}`, state.pos.x, state.pos.y-22);
-
-  if(state.hp <= 0){
-    diePlayer();
+function bossPreset(mapId){
+  switch(mapId){
+    case 'hunt':  return {name:'초록 군주', color:0xFF5B5B, r:30};
+    case 'cave':  return {name:'동굴 거수', color:0xFF8FD3, r:32};
+    case 'ruins': return {name:'유적 파수꾼', color:0xFFD06B, r:34};
+    case 'abyss': return {name:'심연 군주', color:0xC87AFF, r:36};
+    default:      return {name:'보스', color:0xFF5B5B, r:32};
   }
 }
 
-function tickMonsterContactDamage(){
-  const t = now();
-  if(isPlayerDead(t)) return;
-  if(state.map === 'town') return;
-  if(t < (runtime.invulUntil||0)) return;
+function spawnBoss(){
+  if(state.map==='town') return;
+  if(runtime.bossSpawned || runtime.bossDefeated) return;
 
-  const px = state.pos.x, py = state.pos.y;
-  const pr = 18;
+  const m = MAPS[state.map];
+  const cfg = m.mobs;
+  const diff = MAP_DIFF[state.map] || MAP_DIFF.hunt;
+  const p = bossPreset(state.map);
 
-  for(const mo of runtime.monsters){
-    if(!mo || mo.hp<=0) continue;
-    const mr = mo.r || 16;
-    const rr = pr + mr;
-    if(dist2(px,py, mo.spr.x, mo.spr.y) <= rr*rr){
-      const base = (mo.atk!=null ? mo.atk : 6);
-      applyPlayerDamage(Math.max(1, Math.floor(base)), mo.spr.x, mo.spr.y);
-      break;
-    }
-  }
+  const hp = Math.floor((cfg.hp * diff.hpMul) * 7 + 120 + diff.tier*60);
+  const atk = Math.floor((cfg.atk * diff.atkMul) * 1.7 + 6 + diff.tier*2);
+  const def = Math.floor((cfg.def||0) + diff.tier);
+
+  const spr = new PIXI.Graphics();
+  spr.beginFill(p.color, 1).drawCircle(0,0,p.r).endFill();
+  spr.lineStyle(3, 0x000000, 0.55).drawCircle(0,0,p.r+1);
+
+  // spawn away from portal
+  spr.x = Math.floor(m.w*0.74);
+  spr.y = Math.floor(m.h*0.52);
+  layerEnt.addChild(spr);
+
+  runtime.monsters.push({
+    spr,
+    hp, hpMax: hp,
+    atk, def,
+    gold: [Math.floor(40*diff.goldMul), Math.floor(80*diff.goldMul) + diff.tier*15],
+    tier: diff.tier,
+    dropGear: 0,
+    isBoss: true,
+    bossName: p.name,
+    mv: 62 + diff.tier*6,
+  });
+
+  runtime.bossSpawned = true;
+  floatText(`BOSS 출현: ${p.name}`, spr.x, spr.y - (p.r+18));
+  burstFx(spr.x, spr.y, 0xffd06b);
 }
-
 
 function spawnDrop(x,y, item){
   const spr = new PIXI.Graphics();
@@ -1091,7 +1133,7 @@ function btnTap(btn, fn){
 }
 
 // actions
-function roll(){ const t=now(); if(isPlayerDead(t)) return; runtime.rollingUntil = t + 0.35; }
+function roll(){ runtime.rollingUntil = now() + 0.35; }
 function skill1(){
   if(state.mp >= 10){
     state.mp -= 10;
@@ -1348,15 +1390,40 @@ app.ticker.add(()=>{
   last = t;
   runtime.t = now();
 
-  // death/respawn
-  if(runtime.respawnAt && runtime.t >= runtime.respawnAt){
-    respawnAtTown();
+  // town regen (safe zone)
+  if(state.map==='town' && !runtime.dead){
+    state.hp = Math.min(state.hpMax, state.hp + state.hpMax*0.015*dt);
+    state.mp = Math.min(state.mpMax, state.mp + state.mpMax*0.020*dt);
   }
-  const dead = isPlayerDead(runtime.t);
+
+  // death state (freeze + auto respawn in town)
+  if(runtime.dead){
+    state.hp = 0;
+    if(runtime.t >= runtime.deadUntil){
+      runtime.dead = false;
+      moveToMap('town');
+      const st2 = computeStats();
+      state.hp = Math.floor(st2.hpMax*0.75);
+      state.mp = Math.floor(st2.mpMax*0.50);
+      runtime.invulnUntil = runtime.t + 1.2;
+      floatText('마을에서 부활', state.pos.x, state.pos.y-30);
+      burstFx(state.pos.x, state.pos.y, 0x8fd3ff);
+    }
+    player.x = state.pos.x;
+    player.y = state.pos.y;
+    cam();
+    uiUpdate();
+    drawMinimap();
+    if(dom.debug.classList.contains('on')){
+      dom.debug.textContent =
+        `VER ${VERSION}\nMAP ${state.map}\nJOY dx=${runtime.joy.dx.toFixed(2)} dy=${runtime.joy.dy.toFixed(2)} act=${runtime.joy.active}\nPOS ${state.pos.x.toFixed(0)},${state.pos.y.toFixed(0)}\nPLUS +${state.weaponPlus} BLADES ${blades.length}\nINV ${state.inv.length}/${state.invMax} DROPS ${runtime.drops.length}`;
+    }
+    return;
+  }
 
 
-  const iv = dead ? {dx:0, dy:0} : inputVector();
-  const spd = dead ? 0 : ((runtime.rollingUntil > runtime.t) ? 380 : 190);
+  const iv = inputVector();
+  const spd = (runtime.rollingUntil > runtime.t) ? 380 : 190;
   state.pos.x += iv.dx * spd * dt;
   state.pos.y += iv.dy * spd * dt;
 
@@ -1364,17 +1431,11 @@ app.ticker.add(()=>{
   state.pos.x = clamp(state.pos.x, 24, m.w-24);
   state.pos.y = clamp(state.pos.y, 24, m.h-24);
 
-  if(dead){
-    cam();
-    uiUpdate();
-    drawMinimap();
-    return;
-  }
-
   // blades orbit
   const n = blades.length;
   const angBase = runtime.t * 4.2;
-  const rangeBase = 64 + computeStats().range;
+  const st = computeStats();
+  const rangeBase = 64 + st.range;
   for(let i=0;i<n;i++){
     const ang = angBase + i*(Math.PI*2/n);
     blades[i].x = state.pos.x + Math.cos(ang)*rangeBase;
@@ -1382,7 +1443,6 @@ app.ticker.add(()=>{
   }
 
   // hit monsters (blade contact)
-  const st = computeStats();
   for(let i=0;i<n;i++){
     const bx=blades[i].x, by=blades[i].y;
     for(const mo of runtime.monsters){
@@ -1397,18 +1457,41 @@ app.ticker.add(()=>{
           const g = mo.gold[0] + ((mo.spr.x + mo.spr.y + i*7) % (mo.gold[1]-mo.gold[0]+1));
           state.gold += Math.floor(g);
 
-          if(Math.random() < (mo.dropGear||0)){
-            const tplId = rollLoot(mo.tier||1);
-            const it = makeItem(tplId);
-            if(it) spawnDrop(mo.spr.x, mo.spr.y, it);
-          }else if(Math.random() < 0.45){
-            const it = makeItem('junk');
-            if(it) spawnDrop(mo.spr.x, mo.spr.y, it);
+          if(mo.isBoss){
+            runtime.bossDefeated = true;
+            // boss reward: heroic chance box
+            const box = makeItem('hero_box');
+            if(box){
+              box.boxTier = mo.tier || 2;
+              spawnDrop(mo.spr.x, mo.spr.y, box);
+            }
+            floatText('보스 격파! 영웅 확률 +@ 상자 획득', mo.spr.x, mo.spr.y-38);
+            burstFx(mo.spr.x, mo.spr.y, 0xffd06b);
+          }else{
+            if(Math.random() < (mo.dropGear||0)){
+              const tplId = rollLoot(mo.tier||1);
+              const it = makeItem(tplId);
+              if(it) spawnDrop(mo.spr.x, mo.spr.y, it);
+            }else if(Math.random() < 0.45){
+              const it = makeItem('junk');
+              if(it) spawnDrop(mo.spr.x, mo.spr.y, it);
+            }
           }
 
           mo.spr.visible=false;
         }
       }
+    }
+  }
+
+  // spawn boss when all normal monsters are cleared
+  if(state.map!=='town' && !runtime.bossSpawned && !runtime.bossDefeated){
+    let anyAlive = false;
+    for(const mo of runtime.monsters){
+      if(!mo.isBoss && mo.hp>0){ anyAlive = true; break; }
+    }
+    if(!anyAlive){
+      spawnBoss();
     }
   }
 
@@ -1422,24 +1505,47 @@ app.ticker.add(()=>{
       const dx = state.pos.x - mo.spr.x;
       const dy = state.pos.y - mo.spr.y;
       const len = Math.sqrt(dx*dx+dy*dy) || 1;
-      const mv = 42 * dt;
+      const mv = (mo.mv!=null ? mo.mv : 42) * dt;
       mo.spr.x += (dx/len)*mv;
       mo.spr.y += (dy/len)*mv;
     }
   }
 
-  // monsters contact damage -> player hp
-  tickMonsterContactDamage();
+  // monster contact damage (player hp)
+  if(state.map!=='town'){
+    const invuln = (runtime.rollingUntil > runtime.t) || (runtime.invulnUntil > runtime.t);
+    if(!invuln && runtime.t >= runtime.hitCdUntil){
+      for(const mo of runtime.monsters){
+        if(mo.hp<=0) continue;
+        const rr = mo.isBoss ? 46 : 34;
+        if(dist2(state.pos.x, state.pos.y, mo.spr.x, mo.spr.y) <= rr*rr){
+          const dmg = Math.max(1, Math.floor(mo.atk - st.def*0.35));
+          state.hp -= dmg;
+          runtime.hitCdUntil = runtime.t + 0.45;
+          runtime.invulnUntil = runtime.t + 0.20;
 
-  // town auto regen (slow)
-  /*__TOWN_REGEN__*/
-  if(state.map==='town'){
-    const hpRate = state.hpMax * 0.015; // 1.5% max HP per sec
-    const mpRate = state.mpMax * 0.020; // 2.0% max MP per sec
-    if(state.hp < state.hpMax) state.hp = Math.min(state.hpMax, state.hp + hpRate * dt);
-    if(state.mp < state.mpMax) state.mp = Math.min(state.mpMax, state.mp + mpRate * dt);
+          // knockback
+          const dx = state.pos.x - mo.spr.x;
+          const dy = state.pos.y - mo.spr.y;
+          const len = Math.sqrt(dx*dx+dy*dy) || 1;
+          state.pos.x = clamp(state.pos.x + (dx/len)*42, 24, m.w-24);
+          state.pos.y = clamp(state.pos.y + (dy/len)*42, 24, m.h-24);
+
+          burstFx(state.pos.x, state.pos.y, 0xff5b5b);
+          floatText(`-${dmg}`, state.pos.x, state.pos.y-30);
+          break;
+        }
+      }
+    }
+
+    if(state.hp <= 0 && !runtime.dead){
+      state.hp = 0;
+      runtime.dead = true;
+      runtime.deadUntil = runtime.t + 0.85;
+      floatText('사망...', state.pos.x, state.pos.y-30);
+      burstFx(state.pos.x, state.pos.y, 0xffffff);
+    }
   }
-
 
   cam();
   uiUpdate();

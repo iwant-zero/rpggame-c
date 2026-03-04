@@ -1,6 +1,6 @@
 (()=>{"use strict";
 
-const VERSION = 'eg-new4-d4-bossbox1';
+const VERSION = 'eg-new4-d4-bossbox2';
 const BASE_W = 960, BASE_H = 540;
 
 const $ = (id)=>document.getElementById(id);
@@ -903,6 +903,8 @@ function respawnMonsters(){
       dropGear: diff.dropGear,
     });
   }
+}
+
 function bossPreset(mapId){
   switch(mapId){
     case 'hunt':  return {name:'초록 군주', color:0xFF5B5B, r:30};
@@ -950,8 +952,6 @@ function spawnBoss(){
   runtime.bossSpawned = true;
   floatText(`BOSS 출현: ${p.name}`, spr.x, spr.y - (p.r+18));
   burstFx(spr.x, spr.y, 0xffd06b);
-}
-
 }
 
 function spawnDrop(x,y, item){
